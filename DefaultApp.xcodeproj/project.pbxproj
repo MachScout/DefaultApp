@@ -1,0 +1,927 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 70;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		710000000000000000000003 /* DefaultAppCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000001 /* DefaultAppCore.framework */; };
+		A10000000000000000000001 /* DefaultAppCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000001 /* DefaultAppCore.framework */; };
+		A10000000000000000000002 /* DefaultAppCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000001 /* DefaultAppCore.framework */; };
+		A10000000000000000000003 /* DefaultAppCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000001 /* DefaultAppCore.framework */; };
+		A10000000000000000000010 /* DefaultAppCore.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000001 /* DefaultAppCore.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		E10000000000000000000002 /* DefaultAppCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000001 /* DefaultAppCore.framework */; };
+		E10000000000000000000003 /* DefaultAppCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000001 /* DefaultAppCore.framework */; };
+		E10000000000000000000004 /* libDefaultAppCLIKit.a in Frameworks */ = {isa = PBXBuildFile; fileRef = E20000000000000000000001 /* libDefaultAppCLIKit.a */; };
+		E10000000000000000000005 /* libDefaultAppCLIKit.a in Frameworks */ = {isa = PBXBuildFile; fileRef = E20000000000000000000001 /* libDefaultAppCLIKit.a */; };
+		F10000000000000000000001 /* defaultapp in Embed CLI */ = {isa = PBXBuildFile; fileRef = A20000000000000000000003 /* defaultapp */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		A40000000000000000000001 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A50000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A60000000000000000000001;
+			remoteInfo = DefaultAppCore;
+		};
+		A40000000000000000000002 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A50000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A60000000000000000000001;
+			remoteInfo = DefaultAppCore;
+		};
+		A40000000000000000000003 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A50000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A60000000000000000000001;
+			remoteInfo = DefaultAppCore;
+		};
+		A40000000000000000000004 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A50000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A60000000000000000000002;
+			remoteInfo = DefaultApp;
+		};
+		E40000000000000000000001 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A50000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A60000000000000000000001;
+			remoteInfo = DefaultAppCore;
+		};
+		E40000000000000000000002 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A50000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = E60000000000000000000001;
+			remoteInfo = DefaultAppCLIKit;
+		};
+		E40000000000000000000003 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A50000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = E60000000000000000000001;
+			remoteInfo = DefaultAppCLIKit;
+		};
+		F40000000000000000000001 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A50000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A60000000000000000000003;
+			remoteInfo = DefaultAppCLI;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		AD0000000000000000000001 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				A10000000000000000000010 /* DefaultAppCore.framework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		FD0000000000000000000001 /* Embed CLI */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = bin;
+			dstSubfolderSpec = 7;
+			files = (
+				F10000000000000000000001 /* defaultapp in Embed CLI */,
+			);
+			name = "Embed CLI";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		A20000000000000000000001 /* DefaultAppCore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = DefaultAppCore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		A20000000000000000000002 /* DefaultApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DefaultApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A20000000000000000000003 /* defaultapp */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = defaultapp; sourceTree = BUILT_PRODUCTS_DIR; };
+		A20000000000000000000004 /* DefaultAppCoreTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DefaultAppCoreTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		A20000000000000000000005 /* DefaultAppCLITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DefaultAppCLITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		A20000000000000000000006 /* DefaultAppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DefaultAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		E20000000000000000000001 /* libDefaultAppCLIKit.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libDefaultAppCLIKit.a; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		6604A4E5306020B700AF265B /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = A60000000000000000000002 /* DefaultApp */;
+		};
+		6604A4F2306020BC00AF265B /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Main.swift,
+			);
+			target = A60000000000000000000003 /* DefaultAppCLI */;
+		};
+		6604A4F3306020BC00AF265B /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Main.swift,
+			);
+			target = E60000000000000000000001 /* DefaultAppCLIKit */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		6604A4D2306020B600AF265B /* DefaultApp */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (6604A4E5306020B700AF265B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = DefaultApp; sourceTree = "<group>"; };
+		6604A4EB306020BB00AF265B /* DefaultAppCLI */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (6604A4F2306020BC00AF265B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 6604A4F3306020BC00AF265B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = DefaultAppCLI; sourceTree = "<group>"; };
+		6604A4F7306020BF00AF265B /* DefaultAppCLITests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = DefaultAppCLITests; sourceTree = "<group>"; };
+		6604A4FE306020C200AF265B /* DefaultAppTests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = DefaultAppTests; sourceTree = "<group>"; };
+		6604A50F306020EB00AF265B /* DefaultAppCoreTests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = DefaultAppCoreTests; sourceTree = "<group>"; };
+		6604A54D3060211800AF265B /* Sources */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); name = Sources; path = DefaultAppCore/Sources; sourceTree = "<group>"; };
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		A70000000000000000000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A70000000000000000000002 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10000000000000000000001 /* DefaultAppCore.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A70000000000000000000003 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E10000000000000000000004 /* libDefaultAppCLIKit.a in Frameworks */,
+				A10000000000000000000002 /* DefaultAppCore.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A70000000000000000000004 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10000000000000000000003 /* DefaultAppCore.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A70000000000000000000005 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E10000000000000000000005 /* libDefaultAppCLIKit.a in Frameworks */,
+				E10000000000000000000003 /* DefaultAppCore.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A70000000000000000000006 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				710000000000000000000003 /* DefaultAppCore.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E70000000000000000000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E10000000000000000000002 /* DefaultAppCore.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		A80000000000000000000001 = {
+			isa = PBXGroup;
+			children = (
+				6604A54D3060211800AF265B /* Sources */,
+				6604A4D2306020B600AF265B /* DefaultApp */,
+				6604A4EB306020BB00AF265B /* DefaultAppCLI */,
+				6604A4F7306020BF00AF265B /* DefaultAppCLITests */,
+				6604A4FE306020C200AF265B /* DefaultAppTests */,
+				6604A50F306020EB00AF265B /* DefaultAppCoreTests */,
+				A80000000000000000000006 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		A80000000000000000000006 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000001 /* DefaultAppCore.framework */,
+				A20000000000000000000002 /* DefaultApp.app */,
+				A20000000000000000000003 /* defaultapp */,
+				A20000000000000000000004 /* DefaultAppCoreTests.xctest */,
+				A20000000000000000000005 /* DefaultAppCLITests.xctest */,
+				A20000000000000000000006 /* DefaultAppTests.xctest */,
+				E20000000000000000000001 /* libDefaultAppCLIKit.a */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		A60000000000000000000001 /* DefaultAppCore */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A90000000000000000000001 /* Build configuration list for PBXNativeTarget "DefaultAppCore" */;
+			buildPhases = (
+				AA0000000000000000000001 /* Sources */,
+				A70000000000000000000001 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				6604A54D3060211800AF265B /* Sources */,
+			);
+			name = DefaultAppCore;
+			productName = DefaultAppCore;
+			productReference = A20000000000000000000001 /* DefaultAppCore.framework */;
+			productType = "com.apple.product-type.framework";
+		};
+		A60000000000000000000002 /* DefaultApp */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A90000000000000000000002 /* Build configuration list for PBXNativeTarget "DefaultApp" */;
+			buildPhases = (
+				AA0000000000000000000002 /* Sources */,
+				A70000000000000000000002 /* Frameworks */,
+				960000000000000000000003 /* Resources */,
+				AD0000000000000000000001 /* Embed Frameworks */,
+				FD0000000000000000000001 /* Embed CLI */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				AB0000000000000000000001 /* PBXTargetDependency */,
+				FB0000000000000000000001 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				6604A4D2306020B600AF265B /* DefaultApp */,
+			);
+			name = DefaultApp;
+			productName = DefaultApp;
+			productReference = A20000000000000000000002 /* DefaultApp.app */;
+			productType = "com.apple.product-type.application";
+		};
+		A60000000000000000000003 /* DefaultAppCLI */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A90000000000000000000003 /* Build configuration list for PBXNativeTarget "DefaultAppCLI" */;
+			buildPhases = (
+				AA0000000000000000000003 /* Sources */,
+				A70000000000000000000003 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				AB0000000000000000000002 /* PBXTargetDependency */,
+				EB0000000000000000000002 /* PBXTargetDependency */,
+			);
+			name = DefaultAppCLI;
+			productName = defaultapp;
+			productReference = A20000000000000000000003 /* defaultapp */;
+			productType = "com.apple.product-type.tool";
+		};
+		A60000000000000000000004 /* DefaultAppCoreTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A90000000000000000000004 /* Build configuration list for PBXNativeTarget "DefaultAppCoreTests" */;
+			buildPhases = (
+				AA0000000000000000000004 /* Sources */,
+				A70000000000000000000004 /* Frameworks */,
+				AA0000000000000000000007 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				AB0000000000000000000003 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				6604A50F306020EB00AF265B /* DefaultAppCoreTests */,
+			);
+			name = DefaultAppCoreTests;
+			productName = DefaultAppCoreTests;
+			productReference = A20000000000000000000004 /* DefaultAppCoreTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		A60000000000000000000005 /* DefaultAppCLITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A90000000000000000000005 /* Build configuration list for PBXNativeTarget "DefaultAppCLITests" */;
+			buildPhases = (
+				AA0000000000000000000005 /* Sources */,
+				A70000000000000000000005 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				EB0000000000000000000003 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				6604A4F7306020BF00AF265B /* DefaultAppCLITests */,
+			);
+			name = DefaultAppCLITests;
+			productName = DefaultAppCLITests;
+			productReference = A20000000000000000000005 /* DefaultAppCLITests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		A60000000000000000000006 /* DefaultAppTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A90000000000000000000006 /* Build configuration list for PBXNativeTarget "DefaultAppTests" */;
+			buildPhases = (
+				AA0000000000000000000006 /* Sources */,
+				A70000000000000000000006 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				AB0000000000000000000004 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				6604A4FE306020C200AF265B /* DefaultAppTests */,
+			);
+			name = DefaultAppTests;
+			productName = DefaultAppTests;
+			productReference = A20000000000000000000006 /* DefaultAppTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		E60000000000000000000001 /* DefaultAppCLIKit */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E90000000000000000000001 /* Build configuration list for PBXNativeTarget "DefaultAppCLIKit" */;
+			buildPhases = (
+				EA0000000000000000000001 /* Sources */,
+				E70000000000000000000001 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				EB0000000000000000000001 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				6604A4EB306020BB00AF265B /* DefaultAppCLI */,
+			);
+			name = DefaultAppCLIKit;
+			productName = DefaultAppCLIKit;
+			productReference = E20000000000000000000001 /* libDefaultAppCLIKit.a */;
+			productType = "com.apple.product-type.library.static";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		A50000000000000000000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2610;
+				LastUpgradeCheck = 2610;
+				TargetAttributes = {
+					A60000000000000000000001 = {
+						CreatedOnToolsVersion = 26.1;
+					};
+					A60000000000000000000002 = {
+						CreatedOnToolsVersion = 26.1;
+					};
+					A60000000000000000000003 = {
+						CreatedOnToolsVersion = 26.1;
+					};
+					A60000000000000000000004 = {
+						CreatedOnToolsVersion = 26.1;
+						TestTargetID = A60000000000000000000001;
+					};
+					A60000000000000000000005 = {
+						CreatedOnToolsVersion = 26.1;
+						TestTargetID = E60000000000000000000001;
+					};
+					A60000000000000000000006 = {
+						CreatedOnToolsVersion = 26.1;
+						TestTargetID = A60000000000000000000002;
+					};
+					E60000000000000000000001 = {
+						CreatedOnToolsVersion = 26.1;
+					};
+				};
+			};
+			buildConfigurationList = A90000000000000000000007 /* Build configuration list for PBXProject "DefaultApp" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = A80000000000000000000001;
+			productRefGroup = A80000000000000000000006 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				A60000000000000000000001 /* DefaultAppCore */,
+				A60000000000000000000002 /* DefaultApp */,
+				A60000000000000000000003 /* DefaultAppCLI */,
+				A60000000000000000000004 /* DefaultAppCoreTests */,
+				A60000000000000000000005 /* DefaultAppCLITests */,
+				A60000000000000000000006 /* DefaultAppTests */,
+				E60000000000000000000001 /* DefaultAppCLIKit */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		960000000000000000000003 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AA0000000000000000000007 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		AA0000000000000000000001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AA0000000000000000000002 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AA0000000000000000000003 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AA0000000000000000000004 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AA0000000000000000000005 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AA0000000000000000000006 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		EA0000000000000000000001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		AB0000000000000000000001 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A60000000000000000000001 /* DefaultAppCore */;
+			targetProxy = A40000000000000000000001 /* PBXContainerItemProxy */;
+		};
+		AB0000000000000000000002 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A60000000000000000000001 /* DefaultAppCore */;
+			targetProxy = A40000000000000000000002 /* PBXContainerItemProxy */;
+		};
+		AB0000000000000000000003 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A60000000000000000000001 /* DefaultAppCore */;
+			targetProxy = A40000000000000000000003 /* PBXContainerItemProxy */;
+		};
+		AB0000000000000000000004 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A60000000000000000000002 /* DefaultApp */;
+			targetProxy = A40000000000000000000004 /* PBXContainerItemProxy */;
+		};
+		EB0000000000000000000001 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A60000000000000000000001 /* DefaultAppCore */;
+			targetProxy = E40000000000000000000001 /* PBXContainerItemProxy */;
+		};
+		EB0000000000000000000002 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = E60000000000000000000001 /* DefaultAppCLIKit */;
+			targetProxy = E40000000000000000000002 /* PBXContainerItemProxy */;
+		};
+		EB0000000000000000000003 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = E60000000000000000000001 /* DefaultAppCLIKit */;
+			targetProxy = E40000000000000000000003 /* PBXContainerItemProxy */;
+		};
+		FB0000000000000000000001 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A60000000000000000000003 /* DefaultAppCLI */;
+			targetProxy = F40000000000000000000001 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		AC0000000000000000000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				ENABLE_APP_SANDBOX = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.DefaultAppCore;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		AC0000000000000000000002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				ENABLE_APP_SANDBOX = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.DefaultAppCore;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		AC0000000000000000000003 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 8853N4U88R;
+				ENABLE_APP_SANDBOX = NO;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = DefaultApp/Info.plist;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.machscout.DefaultApp;
+				PRODUCT_MODULE_NAME = DefaultApp;
+				PRODUCT_NAME = DefaultApp;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		AC0000000000000000000004 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Distribution";
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				"DEVELOPMENT_TEAM[sdk=macosx*]" = 8853N4U88R;
+				ENABLE_APP_SANDBOX = NO;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = DefaultApp/Info.plist;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.machscout.DefaultApp;
+				PRODUCT_MODULE_NAME = DefaultApp;
+				PRODUCT_NAME = DefaultApp;
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				"PROVISIONING_PROFILE_SPECIFIER[sdk=macosx*]" = "";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		AC0000000000000000000005 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				ENABLE_APP_SANDBOX = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path",
+					"@executable_path/../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.defaultapp;
+				PRODUCT_MODULE_NAME = DefaultAppCLI;
+				PRODUCT_NAME = defaultapp;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		AC0000000000000000000006 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				ENABLE_APP_SANDBOX = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path",
+					"@executable_path/../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.defaultapp;
+				PRODUCT_MODULE_NAME = DefaultAppCLI;
+				PRODUCT_NAME = defaultapp;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		AC0000000000000000000007 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "";
+				CODE_SIGN_STYLE = Automatic;
+				ENABLE_APP_SANDBOX = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@loader_path/../Frameworks",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.DefaultAppCoreTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 6.0;
+				TEST_HOST = "";
+			};
+			name = Debug;
+		};
+		AC0000000000000000000008 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "";
+				CODE_SIGN_STYLE = Automatic;
+				ENABLE_APP_SANDBOX = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@loader_path/../Frameworks",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.DefaultAppCoreTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 6.0;
+				TEST_HOST = "";
+			};
+			name = Release;
+		};
+		AC0000000000000000000009 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				ENABLE_APP_SANDBOX = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.DefaultAppCLITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		AC0000000000000000000010 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				ENABLE_APP_SANDBOX = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.DefaultAppCLITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		AC0000000000000000000011 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				ENABLE_APP_SANDBOX = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@loader_path/../Frameworks",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.DefaultAppTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 6.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/DefaultApp.app/Contents/MacOS/DefaultApp";
+			};
+			name = Debug;
+		};
+		AC0000000000000000000012 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				ENABLE_APP_SANDBOX = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@loader_path/../Frameworks",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.DefaultAppTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 6.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/DefaultApp.app/Contents/MacOS/DefaultApp";
+			};
+			name = Release;
+		};
+		AC0000000000000000000013 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				ENABLE_APP_SANDBOX = NO;
+				ENABLE_TESTABILITY = YES;
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		AC0000000000000000000014 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				ENABLE_APP_SANDBOX = NO;
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		EC0000000000000000000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				DEFINES_MODULE = YES;
+				ENABLE_APP_SANDBOX = NO;
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		EC0000000000000000000002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				DEFINES_MODULE = YES;
+				ENABLE_APP_SANDBOX = NO;
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		A90000000000000000000001 /* Build configuration list for PBXNativeTarget "DefaultAppCore" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AC0000000000000000000001 /* Debug */,
+				AC0000000000000000000002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A90000000000000000000002 /* Build configuration list for PBXNativeTarget "DefaultApp" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AC0000000000000000000003 /* Debug */,
+				AC0000000000000000000004 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A90000000000000000000003 /* Build configuration list for PBXNativeTarget "DefaultAppCLI" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AC0000000000000000000005 /* Debug */,
+				AC0000000000000000000006 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A90000000000000000000004 /* Build configuration list for PBXNativeTarget "DefaultAppCoreTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AC0000000000000000000007 /* Debug */,
+				AC0000000000000000000008 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A90000000000000000000005 /* Build configuration list for PBXNativeTarget "DefaultAppCLITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AC0000000000000000000009 /* Debug */,
+				AC0000000000000000000010 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A90000000000000000000006 /* Build configuration list for PBXNativeTarget "DefaultAppTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AC0000000000000000000011 /* Debug */,
+				AC0000000000000000000012 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A90000000000000000000007 /* Build configuration list for PBXProject "DefaultApp" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AC0000000000000000000013 /* Debug */,
+				AC0000000000000000000014 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		E90000000000000000000001 /* Build configuration list for PBXNativeTarget "DefaultAppCLIKit" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				EC0000000000000000000001 /* Debug */,
+				EC0000000000000000000002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = A50000000000000000000001 /* Project object */;
+}
