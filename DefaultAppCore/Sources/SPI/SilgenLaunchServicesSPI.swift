@@ -23,7 +23,7 @@ public protocol PrivateLaunchServicesProviding: Sendable {
 
 public struct SilgenLaunchServicesSPI: PrivateLaunchServicesProviding {
     public static let expectedSymbolNames = [
-        "_LSCopyAllApplicationURLs", "_LSCopySchemesAndHandlerURLs", "_UTCopyDeclaredTypeIdentifiers"
+        "_LSCopyAllApplicationURLs", "_LSCopySchemesAndHandlerURLs", "_UTCopyDeclaredTypeIdentifiers", "_LSDisplayData"
     ]
 
     public init() {}

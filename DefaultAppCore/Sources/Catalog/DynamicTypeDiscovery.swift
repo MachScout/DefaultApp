@@ -1,5 +1,11 @@
+import Darwin
 import Foundation
 import UniformTypeIdentifiers
+
+private typealias LSDisplayDataFunction = @convention(c) (
+    UnsafeMutablePointer<FILE>?, UnsafeRawPointer?, UnsafeRawPointer?, UnsafeRawPointer?,
+    UnsafeRawPointer?, UnsafeRawPointer?, UnsafeRawPointer?
+) -> Int32
 
 public struct DynamicTypePreference: Hashable, Sendable {
     public let identifier: String
@@ -16,31 +22,37 @@ public protocol DynamicTypeDiscovering: Sendable {
 }
 
 /// The public Launch Services APIs query one identifier at a time. The diagnostic
-/// dump also exposes preferences keyed by an extension with no declared UTI.
+/// dump exposes all registered dynamic identifiers and extension preferences.
 public struct DynamicTypeDiscovery: DynamicTypeDiscovering {
-    private static let executable = URL(fileURLWithPath:
-        "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister")
-
     public init() {}
 
     public func discover() throws -> [DynamicTypePreference] {
-        // TODO: Replace the lsregister subprocess with _LSDisplayData after
-        // verifying its private calling convention and output format.
-        let process = Process()
-        process.executableURL = Self.executable
-        process.arguments = ["-dump"]
-        let output = Pipe()
-        process.standardOutput = output
-        process.standardError = FileHandle.nullDevice
-        try process.run()
-        let data = output.fileHandleForReading.readDataToEndOfFile()
-        process.waitUntilExit()
-        guard process.terminationStatus == 0 else {
-            throw DynamicTypeDiscoveryError.dumpFailed(process.terminationStatus)
+        guard let framework = dlopen("/System/Library/Frameworks/CoreServices.framework/CoreServices", RTLD_NOW) else {
+            throw DynamicTypeDiscoveryError.displayUnavailable
         }
-        guard let dump = String(data: data, encoding: .utf8) else {
-            throw DynamicTypeDiscoveryError.invalidUTF8
+        defer { dlclose(framework) }
+        guard let symbol = dlsym(framework, "_LSDisplayData"), let output = tmpfile() else {
+            throw DynamicTypeDiscoveryError.displayUnavailable
         }
+        defer { fclose(output) }
+
+        let display = unsafeBitCast(symbol, to: LSDisplayDataFunction.self)
+        // Current macOS returns 1 even after writing a complete dump.
+        _ = display(output, nil, nil, nil, nil, nil, nil)
+        guard fflush(output) == 0, fseek(output, 0, SEEK_END) == 0 else {
+            throw DynamicTypeDiscoveryError.dumpUnreadable
+        }
+        let length = ftell(output)
+        guard length > 0, fseek(output, 0, SEEK_SET) == 0 else {
+            throw DynamicTypeDiscoveryError.dumpUnreadable
+        }
+        var data = Data(count: Int(length))
+        let bytesRead = data.withUnsafeMutableBytes { bytes in
+            fread(bytes.baseAddress, 1, Int(length), output)
+        }
+        guard bytesRead == Int(length) else { throw DynamicTypeDiscoveryError.dumpUnreadable }
+        let dump = String(decoding: data, as: UTF8.self)
+        guard dump.contains("claimed UTIs:") else { throw DynamicTypeDiscoveryError.incompleteDump }
         return Self.parse(dump)
     }
 
@@ -81,6 +93,16 @@ public struct DynamicTypeDiscovery: DynamicTypeDiscovering {
             }
         }
         finish()
+        let expression = try! NSRegularExpression(pattern: #"dyn\.[a-z0-9]+"#)
+        let source = dump as NSString
+        let range = NSRange(location: 0, length: source.length)
+        let represented = Set(result.map(\.identifier))
+        for match in expression.matches(in: dump, range: range) {
+            let identifier = source.substring(with: match.range)
+            if !represented.contains(identifier) {
+                result.insert(DynamicTypePreference(identifier: identifier, filenameExtension: nil))
+            }
+        }
         return result.sorted { $0.identifier == $1.identifier
             ? ($0.filenameExtension ?? "") < ($1.filenameExtension ?? "")
             : $0.identifier < $1.identifier }
@@ -88,13 +110,15 @@ public struct DynamicTypeDiscovery: DynamicTypeDiscovering {
 }
 
 public enum DynamicTypeDiscoveryError: Error, LocalizedError, Sendable {
-    case dumpFailed(Int32)
-    case invalidUTF8
+    case displayUnavailable
+    case dumpUnreadable
+    case incompleteDump
 
     public var errorDescription: String? {
         switch self {
-        case .dumpFailed(let status): "lsregister -dump failed with status \(status)."
-        case .invalidUTF8: "lsregister -dump returned text that is not UTF-8."
+        case .displayUnavailable: "_LSDisplayData is unavailable."
+        case .dumpUnreadable: "Launch Services display data could not be read."
+        case .incompleteDump: "Launch Services display data contains no claimed content types."
         }
     }
 }

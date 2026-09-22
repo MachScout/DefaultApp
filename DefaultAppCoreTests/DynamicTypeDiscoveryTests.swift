@@ -3,6 +3,17 @@ import XCTest
 @testable import DefaultAppCore
 
 final class DynamicTypeDiscoveryTests: XCTestCase {
+    func testParsesAllRegisteredDynamicIdentifiers() {
+        let dump = """
+        claimed UTIs: public.text, dyn.ah62d4rv4ge80425uqk (.mcpb), dyn.ah62d4rv4ge80e7dxr31086a
+        claimed UTIs: dyn.ah62d4rv4ge80425uqk, public.data
+        """
+        XCTAssertEqual(DynamicTypeDiscovery.parse(dump), [
+            DynamicTypePreference(identifier: "dyn.ah62d4rv4ge80425uqk", filenameExtension: nil),
+            DynamicTypePreference(identifier: "dyn.ah62d4rv4ge80e7dxr31086a", filenameExtension: nil)
+        ])
+    }
+
     func testParsesExtensionPreferencesWithoutTreatingDeclaredTypesAsDynamic() throws {
         let dump = """
         handlerpref id:             machscouttestxyz123 (0x1eff48)

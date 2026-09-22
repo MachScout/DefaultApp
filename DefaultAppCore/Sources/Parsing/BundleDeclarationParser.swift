@@ -1,4 +1,5 @@
 import Foundation
+import UniformTypeIdentifiers
 
 public struct BundleDeclarationParser: Sendable {
     public init() {}
@@ -95,7 +96,7 @@ public struct BundleDeclarationParser: Sendable {
                 continue
             }
 
-            let identifiers = normalizedContentTypeIdentifiers(
+            var identifiers = normalizedContentTypeIdentifiers(
                 entry["LSItemContentTypes"],
                 field: "CFBundleDocumentTypes entry \(index) LSItemContentTypes",
                 warnings: &warnings
@@ -110,6 +111,25 @@ public struct BundleDeclarationParser: Sendable {
                 field: "CFBundleDocumentTypes entry \(index) CFBundleTypeMIMETypes",
                 warnings: &warnings
             )
+            let osTypes = typeCodes(
+                entry["CFBundleTypeOSTypes"],
+                field: "CFBundleDocumentTypes entry \(index) CFBundleTypeOSTypes",
+                warnings: &warnings
+            )
+            if identifiers.isEmpty {
+                // Declared-type enumeration omits identifiers synthesized from legacy document tags.
+                let supertype: UTType = (entry["LSTypeIsPackage"] as? Bool) == true ? .package : .data
+                let osTypeClass = UTTagClass(rawValue: "com.apple.ostype")
+                identifiers = Set(
+                    extensions.filter { !$0.contains("*") }.compactMap {
+                        UTType(filenameExtension: $0, conformingTo: supertype)?.identifier
+                    } + mimeTypes.filter { !$0.contains("*") }.compactMap {
+                        UTType(mimeType: $0, conformingTo: supertype)?.identifier
+                    } + osTypes.compactMap {
+                        UTType(tag: $0, tagClass: osTypeClass, conformingTo: supertype)?.identifier
+                    }
+                ).sorted()
+            }
 
             claims.append(
                 DocumentTypeClaim(
@@ -215,11 +235,45 @@ public struct BundleDeclarationParser: Sendable {
 
     private func normalizedStrings(_ value: Any?, field: String, warnings: inout [String]) -> [String] {
         guard let value else { return [] }
-        guard let values = stringOrArray(from: value) else {
+        let values: [Any]
+        if let string = value as? String {
+            values = [string]
+        } else if let array = value as? [Any] {
+            values = array
+        } else {
             warnings.append("\(field) is not a string or array of strings.")
             return []
         }
-        return values.map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+        return values.compactMap { element in
+            guard let string = string(from: element) else {
+                warnings.append("\(field) contains an invalid string.")
+                return nil
+            }
+            return string.lowercased()
+        }
+    }
+
+    private func typeCodes(_ value: Any?, field: String, warnings: inout [String]) -> [String] {
+        guard let value else { return [] }
+        let codes: [String]
+        if let string = value as? String {
+            codes = [string]
+        } else if let strings = value as? [String] {
+            codes = strings
+        } else {
+            warnings.append("\(field) is not a string or array of strings.")
+            return []
+        }
+        return codes.compactMap { code in
+            guard !code.isEmpty, code.utf8.allSatisfy({ $0 < 0x80 }) else {
+                warnings.append("\(field) contains an invalid type code: \(code)")
+                return nil
+            }
+            // LaunchServices treats legacy OSTypes as four bytes, truncating or NUL-padding strings.
+            let prefix = String(decoding: code.utf8.prefix(4), as: UTF8.self)
+            if prefix == "****" || prefix == "????" { return nil }
+            return prefix + String(repeating: "\0", count: 4 - prefix.utf8.count)
+        }
     }
 
     private func tags(_ value: Any?, field: String, warnings: inout [String]) -> [String: [String]] {

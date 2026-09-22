@@ -24,6 +24,25 @@ final class ApplicationCatalogTests: XCTestCase, @unchecked Sendable {
         XCTAssertEqual(record.isFileType, true)
     }
 
+    func testRegisteredDynamicTypesIncludeUnavailableAppsAndExcludeUnregisteredCandidates() async throws {
+        let registered = "dyn.ah62d4rv4ge80425uqk"
+        let unavailable = "dyn.ah62d4rv4ge80e7dxr31086a"
+        let catalog = ApplicationCatalog(
+            spi: FakeSPI(applications: [sampleURL]),
+            dynamicTypeDiscovery: FixtureDynamicDiscovery(values: [
+                DynamicTypePreference(identifier: registered, filenameExtension: nil),
+                DynamicTypePreference(identifier: unavailable, filenameExtension: nil)
+            ]),
+            infoDictionary: { _ in ["CFBundleDocumentTypes": [["CFBundleTypeExtensions": ["mcpb", "unregistered-extension"]]]] }
+        )
+
+        let snapshot = try await catalog.loadCatalog()
+        XCTAssertEqual(Set(snapshot.contentTypes.map(\.identifier)), [registered, unavailable])
+        XCTAssertEqual(snapshot.applications[0].documentTypeClaims[0].contentTypeIdentifiers, [registered])
+        XCTAssertEqual(snapshot.contentTypes.first { $0.identifier == unavailable }?.isDynamic, true)
+        XCTAssertEqual(snapshot.contentTypes.first { $0.identifier == unavailable }?.isFileType, true)
+    }
+
     func testCatalogMergesDirectoryURLSpellingsAcrossApplicationsAndSchemeHandlers() async throws {
         let directory = URL(fileURLWithPath: "/Fixture/Reader.app", isDirectory: true)
         let alternate = URL(fileURLWithPath: "/Fixture/Reader.app", isDirectory: false)

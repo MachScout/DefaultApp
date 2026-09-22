@@ -81,7 +81,10 @@ public actor ApplicationCatalog: ApplicationCatalogProviding {
             let identity = canonicalApplicationURLIdentity(url)
             urlsByIdentity[identity] = urlsByIdentity[identity] ?? url.standardizedFileURL
         }
-        let applications = urlsByIdentity.values.map { readApplication(at: $0) }.sorted(by: Self.applicationOrder)
+        let registeredDynamicTypes = dynamicWarning == nil ? Set(dynamicTypes.map(\.identifier)) : nil
+        let applications = urlsByIdentity.values.map {
+            Self.filterDynamicClaims(readApplication(at: $0), registeredTypes: registeredDynamicTypes)
+        }.sorted(by: Self.applicationOrder)
         try Task.checkCancellation()
         let snapshot = try buildSnapshot(applications: applications, rawApplications: rawApplications,
                                          rawSchemes: rawSchemes, rawTypes: rawTypes,
@@ -96,7 +99,10 @@ public actor ApplicationCatalog: ApplicationCatalogProviding {
         try Task.checkCancellation()
         let id = canonicalApplicationURLIdentity(url)
         guard let old = snapshot.applications.first(where: { $0.id == id }) else { return snapshot }
-        let updated = readApplication(at: url)
+        let updated = Self.filterDynamicClaims(
+            readApplication(at: url),
+            registeredTypes: discovery.warning == nil ? Set(discovery.dynamicTypes.map(\.identifier)) : nil
+        )
         guard old != updated else { return snapshot }
         let applications = snapshot.applications.map { $0.id == id ? updated : $0 }.sorted(by: Self.applicationOrder)
         let changedTypes = Set((old.exportedTypeDeclarations + old.importedTypeDeclarations
@@ -150,6 +156,30 @@ public actor ApplicationCatalog: ApplicationCatalogProviding {
     private static func applicationOrder(_ lhs: ApplicationRecord, _ rhs: ApplicationRecord) -> Bool {
         if lhs.displayName != rhs.displayName { return ordered(lhs.displayName, rhs.displayName) }
         return lhs.id < rhs.id
+    }
+
+    private static func filterDynamicClaims(_ application: ApplicationRecord,
+                                            registeredTypes: Set<String>?) -> ApplicationRecord {
+        guard let registeredTypes else { return application }
+        let claims = application.documentTypeClaims.map { claim in
+            DocumentTypeClaim(
+                name: claim.name,
+                contentTypeIdentifiers: claim.contentTypeIdentifiers.filter {
+                    !$0.hasPrefix("dyn.") || registeredTypes.contains($0)
+                },
+                filenameExtensions: claim.filenameExtensions,
+                mimeTypes: claim.mimeTypes,
+                rank: claim.rank,
+                role: claim.role
+            )
+        }
+        return ApplicationRecord(
+            url: application.url, bundleIdentifier: application.bundleIdentifier,
+            displayName: application.displayName, bundleVersion: application.bundleVersion,
+            shortVersion: application.shortVersion, urlSchemes: application.urlSchemes,
+            documentTypeClaims: claims, exportedTypeDeclarations: application.exportedTypeDeclarations,
+            importedTypeDeclarations: application.importedTypeDeclarations, warnings: application.warnings
+        )
     }
 
     private func buildSnapshot(applications: [ApplicationRecord], rawApplications: [URL],
@@ -223,8 +253,8 @@ public actor ApplicationCatalog: ApplicationCatalogProviding {
                 tags: tags,
                 supertypes: Set((systemType?.supertypes.map(\.identifier) ?? []) + (declaration?.0.conformanceIdentifiers ?? [])).sorted(by: Self.ordered),
                 declaringApplication: declaration?.1,
-                isFileType: systemType?.conforms(to: .item) ?? false,
-                isDynamic: systemType?.isDynamic ?? false
+                isFileType: identifier.hasPrefix("dyn.") || (systemType?.conforms(to: .item) ?? false),
+                isDynamic: identifier.hasPrefix("dyn.") || (systemType?.isDynamic ?? false)
             )
         }
         let snapshot = CatalogSnapshot(

@@ -26,6 +26,37 @@ final class BundleDeclarationParserTests: XCTestCase {
                        ["public.json"])
     }
 
+    func testLegacyDocumentTagsSynthesizeDynamicIdentifiers() throws {
+        let record = try parser.parse(applicationURL: appURL, infoDictionary: [
+            "CFBundleDocumentTypes": [[
+                "CFBundleTypeExtensions": ["", "mcpb", "*"],
+                "CFBundleTypeMIMETypes": ["application/x-rdp"],
+                "CFBundleTypeOSTypes": ["pptr", "SVG ", "****"]
+            ]]
+        ])
+        XCTAssertEqual(Set(record.documentTypeClaims[0].contentTypeIdentifiers), [
+            "dyn.ah62d4rv4ge80425uqk",
+            "dyn.ah62d4rv4gq80c6durvy0g2pyrf106p52fz3gk6a",
+            "dyn.ah62d4rv4gk81a6dysk",
+            "dyn.ah62d4rv4gk8zgzwhea"
+        ])
+    }
+
+    func testLegacyPackageAndOSTypeCodesUseLaunchServicesConformanceAndWidth() throws {
+        let record = try parser.parse(applicationURL: appURL, infoDictionary: [
+            "CFBundleDocumentTypes": [
+                ["CFBundleTypeExtensions": ["dvdmedia"], "LSTypeIsPackage": true],
+                ["CFBundleTypeOSTypes": ["AISVG", "skp", "gcx", "*"]]
+            ]
+        ])
+        XCTAssertEqual(record.documentTypeClaims[0].contentTypeIdentifiers,
+                       ["dyn.ah62d4qmuhk2x43d0qv00n3dmqe"])
+        XCTAssertEqual(Set(record.documentTypeClaims[1].contentTypeIdentifiers), [
+            "dyn.ah62d4rv4gk8ycwnxn2", "dyn.ah62d4rv4gk81g45upuaa",
+            "dyn.ah62d4rv4gk80s252puaa", "dyn.ah62d4rv4gk8wy1aapuaf2aa"
+        ])
+    }
+
     func testMalformedNestedDeclarationsProduceWarningsNotFailure() throws {
         let record = try parser.parse(
             applicationURL: appURL,
