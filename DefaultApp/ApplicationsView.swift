@@ -26,7 +26,10 @@ struct ApplicationsListView: View {
             }
             .accessibilityLabel("Registered applications")
             .overlay {
-                if store.applicationRows.isEmpty && !store.isLoading {
+                if store.applicationRows.isEmpty && store.isCatalogPending {
+                    ProgressView("Loading applications…")
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if store.applicationRows.isEmpty && !store.isLoading && store.snapshot != nil {
                     EmptyStateView(title: "No applications found", message: "Try a different search, adjust the filters, or refresh the catalog.")
                         .allowsHitTesting(false)
                 }

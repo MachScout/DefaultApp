@@ -298,4 +298,16 @@ final class ViewProjectionTests: XCTestCase {
         XCTAssertTrue(projection.text.contains("_LSCopyAllApplicationURLs"))
         XCTAssertTrue(projection.text.contains("An unreadable bundle"))
     }
+
+    func testDiagnosticsIncludesHandlerInspectionFailureInWarningsAndCopyReport() {
+        let failure = "app.markedit.markdown (modern, All): Unknown content type"
+        let projection = DiagnosticsProjection(
+            snapshot: CatalogSnapshot(), backend: .modern,
+            osVersion: "Test OS", refreshDuration: nil,
+            handlerInspectionError: failure
+        )
+
+        XCTAssertTrue(projection.warnings.contains(failure))
+        XCTAssertTrue(projection.text.contains(failure))
+    }
 }

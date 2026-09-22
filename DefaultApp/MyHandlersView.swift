@@ -21,13 +21,16 @@ struct MyHandlersView: View {
                         Text("Default handlers")
                             .font(.headline)
                         Spacer()
-                        Button("Refresh") { Task { await store.loadOwnedHandlers() } }
+                        Button("Refresh") { Task { await store.loadOwnedHandlers(forceRefresh: true) } }
                             .disabled(store.isLoadingOwnedHandlers || store.isRestoringOwnedHandlers)
                     }
 
-                    if store.isLoadingOwnedHandlers {
+                    if store.isLoadingOwnedHandlers || store.isCatalogPending {
                         ProgressView("Checking URL schemes and content types…")
                             .frame(maxWidth: .infinity, alignment: .leading)
+                    } else if store.snapshot == nil {
+                        Text("Catalog could not be loaded. Use Refresh to try again.")
+                            .foregroundStyle(.secondary)
                     } else if store.ownedHandlers.isEmpty {
                         Text("DefaultApp is not the default handler for any known association.")
                             .foregroundStyle(.secondary)
@@ -69,13 +72,6 @@ struct MyHandlersView: View {
                         }
                         .background(Color(nsColor: .controlBackgroundColor))
                         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                    }
-
-                    if let error = store.ownedHandlersError {
-                        Text(error)
-                            .font(.callout)
-                            .foregroundStyle(.orange)
-                            .textSelection(.enabled)
                     }
 
                     Button("Restore previous handlers") {

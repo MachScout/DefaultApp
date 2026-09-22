@@ -255,7 +255,8 @@ public struct DiagnosticsProjection: Sendable {
     public let warnings: [String]
     public let text: String
 
-    public init(snapshot: CatalogSnapshot?, backend: Backend, osVersion: String, refreshDuration: TimeInterval?) {
+    public init(snapshot: CatalogSnapshot?, backend: Backend, osVersion: String, refreshDuration: TimeInterval?,
+                handlerInspectionError: String? = nil) {
         let diagnostics = snapshot?.diagnostics
         func status(_ value: Int32?) -> String {
             guard let value else { return "Not reported" }
@@ -277,7 +278,7 @@ public struct DiagnosticsProjection: Sendable {
             DiagnosticRow(label: "Catalog content types", value: snapshot.map { String($0.contentTypes.count) } ?? "Not loaded"),
         ]
         symbols = diagnostics?.expectedSymbolNames ?? []
-        warnings = diagnostics?.warnings ?? []
+        warnings = (diagnostics?.warnings ?? []) + (handlerInspectionError.map { [$0] } ?? [])
         text = (["DefaultApp diagnostics"] + rows.map { "\($0.label): \($0.value)" }
                 + ["", "Private symbols:"] + symbols
                 + ["", "Warnings:"] + (warnings.isEmpty ? ["None reported"] : warnings))

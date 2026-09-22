@@ -73,6 +73,265 @@ final class AppStoreTests: XCTestCase, @unchecked Sendable {
     }
 
     @MainActor
+    func testOwnedHandlerFromAnotherInstallationCanRestoreNonDefaultAppCandidate() async throws {
+        let association = try Association.contentType("app.markedit.markdown")
+        let installedCopy = ApplicationRecord(
+            url: URL(fileURLWithPath: "/Build/DefaultApp.app"),
+            bundleIdentifier: "APP.DEFAULT", displayName: "DefaultApp"
+        )
+        let markEdit = ApplicationRecord(
+            url: URL(fileURLWithPath: "/Applications/MarkEdit.app"),
+            bundleIdentifier: "app.cyan.markedit", displayName: "MarkEdit"
+        )
+        let service = FakeService(
+            snapshot: CatalogSnapshot(contentTypes: [ContentTypeRecord(identifier: association.identifier)]),
+            handlerApplicationsByAssociation: [association: [installedCopy, markEdit]],
+            defaultApplicationsByAssociation: [association: installedCopy]
+        )
+        let store = AppStore(service: service, customAssociationStore: MemoryCustomAssociations(),
+                             customTypeRegistrar: TestTypeRegistrar(), ownApplication: ownApplication)
+        await store.load()
+        await store.loadOwnedHandlers()
+
+        XCTAssertEqual(store.ownedHandlers.map(\.association), [association])
+        XCTAssertEqual(store.ownedHandlers.first?.previousApplication?.id, markEdit.id)
+
+        await store.restorePreviousHandlers()
+        let restoredDefault = await service.recordedDefault(for: association)
+        XCTAssertEqual(restoredDefault?.id, markEdit.id)
+        XCTAssertTrue(store.ownedHandlers.isEmpty)
+    }
+
+    @MainActor
+    func testOwnedHandlerInspectionErrorNamesAssociationAndReason() async throws {
+        let association = try Association.contentType("app.markedit.markdown")
+        let service = FakeService(
+            snapshot: CatalogSnapshot(contentTypes: [ContentTypeRecord(identifier: association.identifier)]),
+            defaultPlans: [.init(result: .failure(.handlersUnavailable))]
+        )
+        let store = AppStore(service: service, customAssociationStore: MemoryCustomAssociations(),
+                             customTypeRegistrar: TestTypeRegistrar(), ownApplication: ownApplication)
+        await store.load()
+        await store.loadOwnedHandlers()
+
+        XCTAssertTrue(store.ownedHandlersError?.contains("app.markedit.markdown") == true)
+        XCTAssertTrue(store.ownedHandlersError?.contains("Handlers are unavailable.") == true)
+    }
+
+    @MainActor
+    func testOwnedHandlersReuseCompleteScanUntilExplicitRefresh() async throws {
+        let association = try Association.contentType("app.markedit.markdown")
+        let own = ApplicationRecord(url: ownApplication.url,
+                                    bundleIdentifier: ownApplication.bundleIdentifier,
+                                    displayName: "DefaultApp")
+        let gate = AsyncGate()
+        let service = FakeService(
+            snapshot: CatalogSnapshot(contentTypes: [ContentTypeRecord(identifier: association.identifier)]),
+            handlerApplications: [safari], defaultApplication: own,
+            defaultPlans: [.init(gate: gate, result: .success(own))]
+        )
+        let store = AppStore(service: service, customAssociationStore: MemoryCustomAssociations(),
+                             customTypeRegistrar: TestTypeRegistrar(), ownApplication: ownApplication)
+        await store.load()
+        store.selectTab(.myHandlers)
+        let firstLoad = Task { await store.loadOwnedHandlers() }
+        await gate.waitUntilEntered()
+        XCTAssertTrue(store.isLoadingOwnedHandlers)
+        XCTAssertTrue(store.ownedHandlers.isEmpty)
+        await gate.release()
+        await firstLoad.value
+        XCTAssertEqual(store.ownedHandlers.map(\.association), [association])
+        let firstScanCalls = await service.recordedCalls()
+
+        await store.loadOwnedHandlers()
+        let cachedCalls = await service.recordedCalls()
+        XCTAssertEqual(cachedCalls, firstScanCalls)
+        XCTAssertEqual(store.ownedHandlers.map(\.association), [association])
+
+        await store.refresh()
+        let refreshedCalls = await service.recordedCalls()
+        XCTAssertEqual(refreshedCalls.filter { if case .defaultApplication = $0 { true } else { false } }.count, 2)
+    }
+
+    @MainActor
+    func testOwnedHandlersReprojectsChangedDefaultFromSharedCacheOnReentry() async throws {
+        let association = try Association.contentType("app.markedit.markdown")
+        let service = FakeService(
+            snapshot: CatalogSnapshot(contentTypes: [ContentTypeRecord(identifier: association.identifier)]),
+            handlerApplications: [safari], defaultApplication: safari
+        )
+        let store = AppStore(service: service, customAssociationStore: MemoryCustomAssociations(),
+                             customTypeRegistrar: TestTypeRegistrar(), ownApplication: ownApplication)
+        await store.load()
+        store.selectTab(.myHandlers)
+        await store.loadOwnedHandlers()
+        XCTAssertTrue(store.ownedHandlers.isEmpty)
+
+        await store.setDefault(ownApplication, for: association)
+        let callsBeforeReentry = await service.recordedCalls()
+        await store.loadOwnedHandlers()
+
+        XCTAssertEqual(store.ownedHandlers.map(\.association), [association])
+        XCTAssertEqual(store.ownedHandlers.first?.previousApplication?.id, safari.id)
+        let callsAfterReentry = await service.recordedCalls()
+        XCTAssertEqual(callsAfterReentry, callsBeforeReentry)
+    }
+
+    @MainActor
+    func testCompleteOwnedScanFillsSharedDefaultCacheForNonOwnedAssociations() async throws {
+        let association = try Association.contentType("app.markedit.markdown")
+        let service = FakeService(
+            snapshot: CatalogSnapshot(contentTypes: [ContentTypeRecord(identifier: association.identifier)]),
+            defaultApplication: safari
+        )
+        let store = AppStore(service: service, customAssociationStore: MemoryCustomAssociations(),
+                             customTypeRegistrar: TestTypeRegistrar(), ownApplication: ownApplication)
+        await store.load()
+        await store.loadOwnedHandlers()
+        store.selectTab(.contentTypes)
+        await store.loadAssociationDefaults()
+
+        XCTAssertEqual(store.defaultHandlers[association]?.application?.id, safari.id)
+        let calls = await service.recordedCalls()
+        XCTAssertEqual(calls.filter { if case .defaultApplication = $0 { true } else { false } }.count, 1)
+    }
+
+    @MainActor
+    func testLateListLookupCannotReplaceNewerCompleteOwnedScan() async throws {
+        let association = try Association.contentType("app.markedit.markdown")
+        let own = ApplicationRecord(url: ownApplication.url,
+                                    bundleIdentifier: ownApplication.bundleIdentifier,
+                                    displayName: "DefaultApp")
+        let staleGate = AsyncGate()
+        let service = FakeService(
+            snapshot: CatalogSnapshot(contentTypes: [ContentTypeRecord(identifier: association.identifier)]),
+            handlerApplications: [safari], defaultApplication: own,
+            defaultPlans: [.init(gate: staleGate, result: .success(safari)),
+                           .init(result: .success(own))]
+        )
+        let store = AppStore(service: service, customAssociationStore: MemoryCustomAssociations(),
+                             customTypeRegistrar: TestTypeRegistrar(), ownApplication: ownApplication)
+        await store.load()
+        store.selectTab(.contentTypes)
+        let staleList = Task { await store.loadAssociationDefaults() }
+        await staleGate.waitUntilEntered()
+
+        await store.loadOwnedHandlers()
+        await staleGate.release()
+        await staleList.value
+        store.selectTab(.myHandlers)
+        await store.loadOwnedHandlers()
+
+        XCTAssertEqual(store.ownedHandlers.map(\.association), [association])
+        store.selectTab(.contentTypes)
+        await store.loadAssociationDefaults()
+        XCTAssertEqual(store.defaultHandlers[association]?.application?.id, own.id)
+    }
+
+    @MainActor
+    func testOwnedHandlersShowsLoadingWhileAwaitingInitialCatalog() async throws {
+        let gate = AsyncGate()
+        let service = FakeService(snapshot: sampleSnapshot, catalogGate: gate)
+        let store = AppStore(service: service, customAssociationStore: MemoryCustomAssociations(),
+                             customTypeRegistrar: TestTypeRegistrar(), ownApplication: ownApplication)
+        let loading = Task { await store.loadOwnedHandlers() }
+        await gate.waitUntilEntered()
+
+        XCTAssertTrue(store.isLoadingOwnedHandlers)
+        XCTAssertNil(store.snapshot)
+        await gate.release()
+        await loading.value
+        XCTAssertFalse(store.isLoadingOwnedHandlers)
+    }
+
+    @MainActor
+    func testCatalogPendingDistinguishesInitialLoadingFromAnEmptyCatalog() async {
+        let gate = AsyncGate()
+        let service = FakeService(snapshot: sampleSnapshot, catalogGate: gate)
+        let store = AppStore(service: service, customAssociationStore: MemoryCustomAssociations(),
+                             customTypeRegistrar: TestTypeRegistrar(), ownApplication: ownApplication)
+        XCTAssertTrue(store.isCatalogPending)
+
+        let loading = Task { await store.load() }
+        await gate.waitUntilEntered()
+        XCTAssertTrue(store.isCatalogPending)
+        await gate.release()
+        _ = await loading.value
+
+        XCTAssertFalse(store.isCatalogPending)
+        XCTAssertNotNil(store.snapshot)
+    }
+
+    @MainActor
+    func testReentryAfterCancelledFirstScanStillFillsOwnedCache() async throws {
+        let association = try Association.contentType("app.markedit.markdown")
+        let own = ApplicationRecord(url: ownApplication.url,
+                                    bundleIdentifier: ownApplication.bundleIdentifier,
+                                    displayName: "DefaultApp")
+        let gate = AsyncGate()
+        let service = FakeService(
+            snapshot: CatalogSnapshot(contentTypes: [ContentTypeRecord(identifier: association.identifier)]),
+            handlerApplications: [safari], defaultApplication: own,
+            defaultPlans: [.init(gate: gate, result: .success(own))]
+        )
+        let store = AppStore(service: service, customAssociationStore: MemoryCustomAssociations(),
+                             customTypeRegistrar: TestTypeRegistrar(), ownApplication: ownApplication)
+        await store.load()
+        let cancelledLoad = Task { await store.loadOwnedHandlers() }
+        await gate.waitUntilEntered()
+        cancelledLoad.cancel()
+
+        await store.loadOwnedHandlers()
+
+        XCTAssertEqual(store.ownedHandlers.map(\.association), [association])
+        await gate.release()
+        await cancelledLoad.value
+    }
+
+    @MainActor
+    func testRestoreUpdatesOwnedCacheWithoutRescanningCatalog() async throws {
+        let association = try Association.contentType("app.markedit.markdown")
+        let own = ApplicationRecord(url: ownApplication.url,
+                                    bundleIdentifier: ownApplication.bundleIdentifier,
+                                    displayName: "DefaultApp")
+        let service = FakeService(
+            snapshot: CatalogSnapshot(contentTypes: [ContentTypeRecord(identifier: association.identifier)]),
+            handlerApplications: [safari], defaultApplication: own
+        )
+        let store = AppStore(service: service, customAssociationStore: MemoryCustomAssociations(),
+                             customTypeRegistrar: TestTypeRegistrar(), ownApplication: ownApplication)
+        await store.load()
+        await store.loadOwnedHandlers()
+        await store.restorePreviousHandlers()
+
+        XCTAssertTrue(store.ownedHandlers.isEmpty)
+        let calls = await service.recordedCalls()
+        XCTAssertEqual(calls.filter { if case .defaultApplication = $0 { true } else { false } }.count, 2)
+    }
+
+    @MainActor
+    func testRestoreKeepsInspectionFailureAvailableForDiagnostics() async throws {
+        let own = ApplicationRecord(url: ownApplication.url,
+                                    bundleIdentifier: ownApplication.bundleIdentifier,
+                                    displayName: "DefaultApp")
+        let service = FakeService(
+            snapshot: sampleSnapshot, handlerApplications: [safari], defaultApplication: own,
+            defaultPlans: [.init(result: .failure(.handlersUnavailable))]
+        )
+        let store = AppStore(service: service, customAssociationStore: MemoryCustomAssociations(),
+                             customTypeRegistrar: TestTypeRegistrar(), ownApplication: ownApplication)
+        await store.load()
+        await store.loadOwnedHandlers()
+        XCTAssertEqual(store.ownedHandlers.count, 1)
+        XCTAssertTrue(store.ownedHandlersError?.contains("Handlers are unavailable.") == true)
+
+        await store.restorePreviousHandlers()
+
+        XCTAssertTrue(store.ownedHandlers.isEmpty)
+        XCTAssertTrue(store.ownedHandlersError?.contains("Handlers are unavailable.") == true)
+    }
+
+    @MainActor
     func testRestoreContinuesAfterOneHandlerFails() async throws {
         let scheme = try Association.urlScheme("mailto")
         let type = try Association.contentType("public.text")
@@ -106,6 +365,41 @@ final class AppStoreTests: XCTestCase, @unchecked Sendable {
         )
 
         XCTAssertEqual(store.selectedTab.rawValue, "general")
+    }
+
+    @MainActor
+    func testInitialCatalogCompletesWhileGeneralDefaultsAreStillLoading() async {
+        let generalGate = AsyncGate()
+        let service = FakeService(snapshot: sampleSnapshot,
+                                  defaultPlans: [.init(gate: generalGate, result: .success(nil))])
+        let store = AppStore(service: service, customAssociationStore: MemoryCustomAssociations(),
+                             customTypeRegistrar: TestTypeRegistrar(), ownApplication: ownApplication)
+
+        let initialCatalog = store.startInitialLoading()
+        await generalGate.waitUntilEntered()
+        await initialCatalog.value
+
+        XCTAssertEqual(store.snapshot, sampleSnapshot)
+        await generalGate.release()
+    }
+
+    @MainActor
+    func testMyHandlersRefreshRetriesFailedInitialCatalog() async throws {
+        let association = try Association.contentType("app.markedit.markdown")
+        let expected = CatalogSnapshot(contentTypes: [ContentTypeRecord(identifier: association.identifier)])
+        let service = FakeService(snapshot: expected,
+                                  catalogPlans: [.init(result: .failure(.catalogUnavailable)),
+                                                 .init(result: .success(expected))])
+        let store = AppStore(service: service, customAssociationStore: MemoryCustomAssociations(),
+                             customTypeRegistrar: TestTypeRegistrar(), ownApplication: ownApplication)
+        let startup = store.startInitialLoading()
+        await startup.value
+        XCTAssertNil(store.snapshot)
+
+        await store.loadOwnedHandlers(forceRefresh: true)
+
+        XCTAssertEqual(store.snapshot, expected)
+        XCTAssertFalse(store.isLoadingOwnedHandlers)
     }
 
     @MainActor

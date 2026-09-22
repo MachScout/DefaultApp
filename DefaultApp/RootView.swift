@@ -76,9 +76,9 @@ struct RootView: View {
             if store.selectedTab != .general && store.selectedTab != .myHandlers {
                 Divider()
                 HStack {
-                    if store.isLoading || store.isResolvingDefaults {
+                    if store.isLoading || store.isCatalogPending || store.isResolvingDefaults {
                         ProgressView().controlSize(.small)
-                        Text(store.isLoading ? "Loading catalog and handlers…" : "Resolving default applications…")
+                        Text(store.isLoading || store.isCatalogPending ? "Loading catalog and handlers…" : "Resolving default applications…")
                     } else {
                         Text(status)
                     }
@@ -94,8 +94,7 @@ struct RootView: View {
         .frame(minWidth: 940, idealWidth: 1180, maxWidth: .infinity,
                minHeight: 540, idealHeight: 720, maxHeight: .infinity)
         .task {
-            await store.loadGeneralDefaults()
-            if store.snapshot == nil { await store.load() }
+            store.startInitialLoading()
         }
         .sheet(item: $newAssociationTab) { tab in
             NewAssociationView(store: store, kind: tab == .urlSchemes ? .urlScheme : .contentType)
@@ -158,7 +157,7 @@ struct RootView: View {
                             AssociationListView(rows: store.associationRows,
                                                 selection: associationSelectionBinding,
                                                 search: store.searchText,
-                                                isLoading: store.isLoading || store.isResolvingDefaults,
+                                                isLoading: store.isLoading || store.isCatalogPending || store.isResolvingDefaults,
                                                 showsExtensions: store.selectedTab == .contentTypes,
                                                 customAssociations: store.customAssociationIDs,
                                                 sort: $store.associationSort)
@@ -191,7 +190,8 @@ struct RootView: View {
                 DiagnosticsView(projection: DiagnosticsProjection(
                     snapshot: store.snapshot, backend: store.backend,
                     osVersion: ProcessInfo.processInfo.operatingSystemVersionString,
-                    refreshDuration: store.refreshDuration
+                    refreshDuration: store.refreshDuration,
+                    handlerInspectionError: store.ownedHandlersError
                 ))
             }
         }
