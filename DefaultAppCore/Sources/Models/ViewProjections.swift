@@ -166,8 +166,7 @@ public struct HandledTypeProjection: Identifiable, Hashable, Sendable {
     public var id: String { identifier }
 
     public var filenameExtensionLabel: String? {
-        guard !filenameExtensions.isEmpty else { return nil }
-        return filenameExtensions.map { "." + $0 }.joined(separator: ", ")
+        ApplicationProjection.filenameExtensionLabel(for: filenameExtensions)
     }
 }
 
@@ -175,8 +174,9 @@ public struct ApplicationProjection: Sendable {
     public let handledTypes: [HandledTypeProjection]
     public let exportedTypes: [ContentTypeDeclaration]
     public let importedTypes: [ContentTypeDeclaration]
+    private let filenameExtensionsByIdentifier: [String: [String]]
 
-    public init(record: ApplicationRecord) {
+    public init(record: ApplicationRecord, contentTypes: [ContentTypeRecord] = []) {
         var roles: [String: HandlerRole] = [:]
         var filenameExtensions: [String: Set<String>] = [:]
         for claim in record.documentTypeClaims {
@@ -185,12 +185,37 @@ public struct ApplicationProjection: Sendable {
                 filenameExtensions[identifier, default: []].formUnion(claim.filenameExtensions)
             }
         }
+
+        for declaration in record.exportedTypeDeclarations + record.importedTypeDeclarations {
+            filenameExtensions[declaration.identifier, default: []].formUnion(
+                declaration.tags["public.filename-extension"] ?? []
+            )
+        }
+        for contentType in contentTypes {
+            filenameExtensions[contentType.identifier, default: []].formUnion(
+                contentType.tags["public.filename-extension"] ?? []
+            )
+        }
+
+        let resolvedFilenameExtensions = filenameExtensions.mapValues { values in
+            Set(values.map { $0.lowercased() }).sorted()
+        }
+        filenameExtensionsByIdentifier = resolvedFilenameExtensions
         handledTypes = roles.keys.sorted().map {
             HandledTypeProjection(identifier: $0, role: roles[$0] ?? [],
-                                  filenameExtensions: filenameExtensions[$0, default: []].sorted())
+                                  filenameExtensions: resolvedFilenameExtensions[$0, default: []])
         }
         exportedTypes = record.exportedTypeDeclarations
         importedTypes = record.importedTypeDeclarations
+    }
+
+    public func filenameExtensionLabel(for identifier: String) -> String? {
+        Self.filenameExtensionLabel(for: filenameExtensionsByIdentifier[identifier.lowercased(), default: []])
+    }
+
+    fileprivate static func filenameExtensionLabel(for extensions: [String]) -> String? {
+        guard !extensions.isEmpty else { return nil }
+        return extensions.map { $0 == "*" ? $0 : "." + $0 }.joined(separator: ", ")
     }
 
     public static func records(from snapshot: CatalogSnapshot, search: String,

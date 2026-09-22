@@ -200,6 +200,50 @@ final class ViewProjectionTests: XCTestCase {
         XCTAssertNil(data.filenameExtensionLabel)
     }
 
+    func testHandledTypeProjectionUsesExtensionsFromMatchingTypeDeclaration() throws {
+        let record = ApplicationRecord(
+            url: mail.url, displayName: "Image Viewer",
+            documentTypeClaims: [
+                DocumentTypeClaim(contentTypeIdentifiers: ["public.jpeg"], role: .viewer),
+            ],
+            importedTypeDeclarations: [
+                ContentTypeDeclaration(
+                    identifier: "public.jpeg",
+                    provenance: .imported,
+                    tags: ["public.filename-extension": ["jpeg", "jpg"]]
+                ),
+            ]
+        )
+
+        let type = try XCTUnwrap(ApplicationProjection(record: record).handledTypes.first)
+
+        XCTAssertEqual(type.filenameExtensionLabel, ".jpeg, .jpg")
+    }
+
+    func testApplicationProjectionUsesCatalogExtensionsForDeclaredAndAdditionalTypes() throws {
+        let record = ApplicationRecord(
+            url: mail.url, displayName: "Image Viewer",
+            documentTypeClaims: [
+                DocumentTypeClaim(contentTypeIdentifiers: ["public.jpeg"], role: .viewer),
+            ]
+        )
+        let catalogTypes = [
+            ContentTypeRecord(
+                identifier: "public.jpeg",
+                tags: ["public.filename-extension": ["jpeg", "jpg"]]
+            ),
+            ContentTypeRecord(
+                identifier: "public.png",
+                tags: ["public.filename-extension": ["png"]]
+            ),
+        ]
+
+        let projection = ApplicationProjection(record: record, contentTypes: catalogTypes)
+
+        XCTAssertEqual(projection.handledTypes.first?.filenameExtensionLabel, ".jpeg, .jpg")
+        XCTAssertEqual(projection.filenameExtensionLabel(for: "public.png"), ".png")
+    }
+
     func testApplicationSearchMatchesPathAndBundleIdentifier() {
         let snapshot = CatalogSnapshot(applications: [mail])
         XCTAssertEqual(ApplicationProjection.records(from: snapshot, search: "MAIL.APP"), [mail])

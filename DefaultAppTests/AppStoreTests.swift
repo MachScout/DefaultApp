@@ -1455,6 +1455,33 @@ final class AppStoreTests: XCTestCase, @unchecked Sendable {
     }
 
     @MainActor
+    func testAdditionalDefaultAssociationsSeparateContentTypesAndSchemes() async throws {
+        let application = ApplicationRecord(url: safari.url, displayName: "Browser")
+        let snapshot = CatalogSnapshot(
+            applications: [application],
+            urlSchemes: [URLSchemeRecord(identifier: "sample")],
+            contentTypes: [ContentTypeRecord(identifier: "public.png")]
+        )
+        let service = FakeService(snapshot: snapshot, defaultApplication: application)
+        let store = makeStore(service: service)
+
+        await store.load()
+        store.selectTab(.urlSchemes)
+        await store.loadAssociationDefaults()
+        store.selectTab(.contentTypes)
+        await store.loadAssociationDefaults()
+
+        XCTAssertEqual(
+            store.additionalDefaultAssociations(for: application, kind: .urlScheme),
+            [try .urlScheme("sample")]
+        )
+        XCTAssertEqual(
+            store.additionalDefaultAssociations(for: application, kind: .contentType),
+            [try .contentType("public.png")]
+        )
+    }
+
+    @MainActor
     func testContentTypeTablePreloadsEveryDefaultBeforeScrolling() async throws {
         let types = (0..<1_301).map { ContentTypeRecord(identifier: String(format: "test.type-%04d", $0)) }
         let service = FakeService(snapshot: CatalogSnapshot(contentTypes: types))

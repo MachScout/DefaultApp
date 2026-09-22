@@ -677,6 +677,13 @@ final class AppStore: ObservableObject {
         }
     }
 
+    func additionalDefaultAssociations(
+        for application: ApplicationRecord,
+        kind: Association.Kind
+    ) -> [Association] {
+        additionalDefaultAssociations(for: application).filter { $0.kind == kind }
+    }
+
     var selectedApplicationAssociations: [Association] {
         guard let application = selectedApplication else { return [] }
         return Array(Set(declaredAssociations(for: application) + additionalDefaultAssociations(for: application)))

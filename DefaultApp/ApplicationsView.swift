@@ -77,8 +77,8 @@ private struct ApplicationDetailView: View {
     init(application: ApplicationRecord, store: AppStore) {
         self.application = application
         self.store = store
-        projection = ApplicationProjection(record: application)
-        extensions = Set(application.documentTypeClaims.flatMap(\.filenameExtensions)).sorted().joined(separator: ", ")
+        projection = ApplicationProjection(record: application, contentTypes: store.snapshot?.contentTypes ?? [])
+        extensions = Set(projection.handledTypes.flatMap(\.filenameExtensions)).sorted().joined(separator: ", ")
         mimeTypes = Set(application.documentTypeClaims.flatMap(\.mimeTypes)).sorted().joined(separator: ", ")
     }
 
@@ -101,6 +101,16 @@ private struct ApplicationDetailView: View {
                         ForEach(application.urlSchemes) { scheme in
                             ApplicationAssociationRow(identifier: scheme.scheme, kind: .urlScheme, application: application, store: store)
                         }
+                        let additionalDefaults = store.additionalDefaultAssociations(for: application, kind: .urlScheme)
+                        if !additionalDefaults.isEmpty {
+                            Divider()
+                            Text("Default associations beyond this app’s declared types and schemes.")
+                                .font(.caption).foregroundStyle(.secondary)
+                            ForEach(additionalDefaults, id: \.self) { association in
+                                ApplicationAssociationRow(identifier: association.identifier, kind: .urlScheme,
+                                                          application: application, store: store)
+                            }
+                        }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading).padding(8)
                 }
@@ -114,7 +124,7 @@ private struct ApplicationDetailView: View {
                         }
                         if !extensions.isEmpty { MetadataRow(label: "Filename extensions", value: extensions) }
                         if !mimeTypes.isEmpty { MetadataRow(label: "MIME types", value: mimeTypes) }
-                        let additionalDefaults = store.additionalDefaultAssociations(for: application)
+                        let additionalDefaults = store.additionalDefaultAssociations(for: application, kind: .contentType)
                         if !additionalDefaults.isEmpty {
                             Divider()
                             Text("Default associations beyond this app’s declared types and schemes.")
@@ -122,8 +132,7 @@ private struct ApplicationDetailView: View {
                             ForEach(additionalDefaults, id: \.self) { association in
                                 ApplicationAssociationRow(identifier: association.identifier, kind: association.kind,
                                                           application: application, store: store,
-                                                          detailLabel: association.kind == .contentType
-                                                              ? "Content type" : "URL scheme")
+                                                          detailLabel: projection.filenameExtensionLabel(for: association.identifier))
                             }
                         }
                     }
