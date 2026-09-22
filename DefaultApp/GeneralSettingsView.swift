@@ -40,23 +40,6 @@ struct GeneralSettingsView: View {
                         .stroke(Color(nsColor: .separatorColor).opacity(0.7), lineWidth: 1)
                 }
 
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Incoming Items")
-                        .font(.headline)
-                    Toggle("Close the window after the queue is handled",
-                           isOn: $store.closesIncomingWindowAfterHandling)
-                    Text("When DefaultApp is launched by a file or URL, it always quits after the incoming queue is handled.")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .padding(16)
-                .background(Color(nsColor: .controlBackgroundColor))
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .stroke(Color(nsColor: .separatorColor).opacity(0.7), lineWidth: 1)
-                }
             }
             .frame(maxWidth: 620, alignment: .leading)
             .padding(.horizontal, 40)

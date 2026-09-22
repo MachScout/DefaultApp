@@ -15,7 +15,7 @@ struct RootView: View {
             }
             .pickerStyle(.segmented)
             .labelsHidden()
-            .disabled((store.pendingMutation != nil || store.isCreatingAssociation))
+            .disabled((store.pendingMutation != nil || store.isCreatingAssociation || store.isRestoringOwnedHandlers))
             .padding()
 
             if showsCatalogChrome {
@@ -73,7 +73,7 @@ struct RootView: View {
                 content
                     .frame(width: geometry.size.width, height: geometry.size.height)
             }
-            if store.selectedTab != .general {
+            if store.selectedTab != .general && store.selectedTab != .myHandlers {
                 Divider()
                 HStack {
                     if store.isLoading || store.isResolvingDefaults {
@@ -104,6 +104,9 @@ struct RootView: View {
         .task(id: store.applicationDetailID) { await store.refreshSelectedApplication() }
         .task(id: store.listQuery) { await store.loadAssociationDefaults() }
         .task(id: store.selectedAssociation) { await store.loadHandlers() }
+        .task(id: store.selectedTab) {
+            if store.selectedTab == .myHandlers { await store.loadOwnedHandlers() }
+        }
     }
 
     var tabSelectionBinding: Binding<AppStore.Tab> {
@@ -180,6 +183,10 @@ struct RootView: View {
                 GeneralSettingsView(store: store)
             }
 
+            if store.selectedTab == .myHandlers {
+                MyHandlersView(store: store)
+            }
+
             if store.selectedTab == .diagnostics {
                 DiagnosticsView(projection: DiagnosticsProjection(
                     snapshot: store.snapshot, backend: store.backend,
@@ -194,6 +201,7 @@ struct RootView: View {
         guard let snapshot = store.snapshot else { return "Catalog not loaded" }
         switch store.selectedTab {
         case .general: return "General settings"
+        case .myHandlers: return "\(store.ownedHandlers.count) handlers"
         case .urlSchemes: return "\(store.associationRows.count) of \(snapshot.urlSchemes.count) URL schemes"
         case .contentTypes: return "\(store.associationRows.count) of \(snapshot.contentTypes.count) content types"
         case .applications: return "\(store.applicationRows.count) of \(snapshot.applications.count) applications"

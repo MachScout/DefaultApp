@@ -39,6 +39,7 @@ extension HandlerService: HandlerServicing {
 final class AppStore: ObservableObject {
     enum Tab: String, CaseIterable, Identifiable, Sendable {
         case general
+        case myHandlers
         case urlSchemes
         case contentTypes
         case applications
@@ -49,6 +50,7 @@ final class AppStore: ObservableObject {
         var title: String {
             switch self {
             case .general: "General"
+            case .myHandlers: "My Handlers"
             case .urlSchemes: "URL Schemes"
             case .contentTypes: "Content Types"
             case .applications: "Applications"
@@ -97,6 +99,27 @@ final class AppStore: ObservableObject {
             hasMixedSelection: Bool
         )
         case failed(String)
+    }
+
+    struct OwnedHandler: Identifiable, Equatable {
+        let association: Association
+        let backend: Backend
+        let role: HandlerRole
+        let previousApplication: ApplicationRecord?
+        let isAutomaticallyDetermined: Bool
+
+        var id: String { "\(association.kind.rawValue):\(association.identifier):\(backend.rawValue):\(role.rawValue)" }
+    }
+
+    private struct PreviousHandler: Codable, Sendable {
+        let association: Association
+        let backend: Backend
+        let role: HandlerRole
+        let application: ApplicationReference
+
+        func matches(_ association: Association, backend: Backend, role: HandlerRole) -> Bool {
+            self.association == association && self.backend == backend && self.role == role
+        }
     }
 
     @Published private(set) var snapshot: CatalogSnapshot?
@@ -154,10 +177,17 @@ final class AppStore: ObservableObject {
     @Published private(set) var isCreatingAssociation = false
     @Published private(set) var browserDefaultState: GeneralDefaultState = .loading
     @Published private(set) var emailDefaultState: GeneralDefaultState = .loading
+    @Published private(set) var ownedHandlers: [OwnedHandler] = []
+    @Published private(set) var isLoadingOwnedHandlers = false
+    @Published private(set) var isRestoringOwnedHandlers = false
+    @Published private(set) var ownedHandlersError: String?
 
     private let customAssociationStore: any CustomAssociationPersisting
     private let customTypeRegistrar: any CustomTypeRegistering
     private let userDefaults: UserDefaults?
+    private let ownApplication: ApplicationReference
+    private var previousHandlers: [PreviousHandler] = []
+    private var ownedHandlersRequestGeneration: UInt = 0
     private var customAssociationsLoaded = false
     private var customLoadTask: Task<[CustomAssociation], Error>?
     private var systemSnapshot: CatalogSnapshot?
@@ -174,7 +204,7 @@ final class AppStore: ObservableObject {
     private var pendingTabSelectionTask: Task<Void, Never>?
     private var preferenceCancellables: Set<AnyCancellable> = []
     private var tabSearches: [Tab: String] = [:]
-    private struct LookupKey: Hashable {
+    private struct LookupKey: Hashable, Sendable {
         let association: Association
         let backend: Backend
         let role: HandlerRole
@@ -219,7 +249,7 @@ final class AppStore: ObservableObject {
         switch selectedTab {
         case .urlSchemes: kind = .urlScheme
         case .contentTypes: kind = .contentType
-        case .general, .applications, .diagnostics: return []
+        case .general, .myHandlers, .applications, .diagnostics: return []
         }
         if associationIndexes[kind] == nil { associationIndexes[kind] = AssociationListIndex(snapshot: snapshot, kind: kind, includeNonFileTypes: showAllContentTypes) }
         let filters = kind == .contentType ? contentTypeFilters : ContentTypeFilters()
@@ -276,14 +306,20 @@ final class AppStore: ObservableObject {
         applicationReferenceResolver: any ApplicationReferenceResolving = BundleApplicationReferenceResolver(),
         customAssociationStore: any CustomAssociationPersisting = CustomAssociationFileStore(),
         customTypeRegistrar: any CustomTypeRegistering = CustomTypeRegistrar(),
-        userDefaults: UserDefaults? = nil
+        userDefaults: UserDefaults? = nil,
+        ownApplication: ApplicationReference = ApplicationReference(url: Bundle.main.bundleURL,
+                                                                    bundleIdentifier: Bundle.main.bundleIdentifier)
     ) {
         self.service = service
         self.applicationReferenceResolver = applicationReferenceResolver
         self.customAssociationStore = customAssociationStore
         self.customTypeRegistrar = customTypeRegistrar
         self.userDefaults = userDefaults
+        self.ownApplication = ownApplication
         if let userDefaults {
+            if let data = userDefaults.data(forKey: PreferenceKey.previousHandlers) {
+                previousHandlers = (try? JSONDecoder().decode([PreviousHandler].self, from: data)) ?? []
+            }
             backend = userDefaults.string(forKey: PreferenceKey.backend)
                 .flatMap(Backend.init(rawValue:)) ?? .modern
             showsDiagnostics = userDefaults.object(forKey: PreferenceKey.showsDiagnostics) as? Bool ?? true
@@ -367,14 +403,15 @@ final class AppStore: ObservableObject {
     }
 
     func selectTab(_ tab: Tab) {
-        guard !isCreatingAssociation, showsDiagnostics || tab != .diagnostics else { return }
+        guard !isCreatingAssociation, !isRestoringOwnedHandlers,
+              showsDiagnostics || tab != .diagnostics else { return }
         invalidatePendingTabSelection()
         applyTabSelection(tab)
     }
 
     func requestTabSelection(_ tab: Tab) {
         invalidatePendingTabSelection()
-        guard pendingMutation == nil, !isCreatingAssociation, tab != selectedTab,
+        guard pendingMutation == nil, !isCreatingAssociation, !isRestoringOwnedHandlers, tab != selectedTab,
               showsDiagnostics || tab != .diagnostics else { return }
         let requestGeneration = tabSelectionRequestGeneration
         pendingTabSelectionTask = Task { @MainActor [weak self] in
@@ -415,7 +452,8 @@ final class AppStore: ObservableObject {
     }
 
     private func applyTabSelection(_ tab: Tab, duringCreation: Bool = false) {
-        guard pendingMutation == nil, (!isCreatingAssociation || duringCreation), tab != selectedTab,
+        guard pendingMutation == nil, !isRestoringOwnedHandlers,
+              (!isCreatingAssociation || duringCreation), tab != selectedTab,
               showsDiagnostics || tab != .diagnostics else { return }
         invalidatePendingRowSelection()
         tabSearches[selectedTab] = searchText
@@ -436,6 +474,7 @@ final class AppStore: ObservableObject {
     }
 
     private enum PreferenceKey {
+        static let previousHandlers = "handlers.previousApplications"
         static let backend = "display.backend"
         static let showsDiagnostics = "display.showsDiagnostics"
         static let closesIncomingWindowAfterHandling = "incomingItems.closeAfterHandling"
@@ -506,8 +545,9 @@ final class AppStore: ObservableObject {
     }
 
     func refresh() async {
-        guard pendingMutation == nil, !isCreatingAssociation else { return }
+        guard pendingMutation == nil, !isCreatingAssociation, !isRestoringOwnedHandlers else { return }
         guard await load(forceRefresh: true) else { return }
+        if selectedTab == .myHandlers { await loadOwnedHandlers(); return }
         await loadHandlers()
     }
 
@@ -591,18 +631,23 @@ final class AppStore: ObservableObject {
         to application: ApplicationRecord,
         associations: [Association]
     ) async throws {
-        guard pendingMutation == nil, !isCreatingAssociation else { return }
+        guard pendingMutation == nil, !isCreatingAssociation, !isRestoringOwnedHandlers else { return }
         generalDefaultsRequestGeneration &+= 1
         pendingMutation = application.id
         presentedError = nil
         defer { pendingMutation = nil }
         for association in associations {
+            let previous = application.id == ownApplication.id
+                ? try? await service.defaultApplication(for: association, backend: .modern, role: .all)
+                : nil
             try await service.setDefaultApplication(
                 application.reference,
                 for: association,
                 backend: .modern,
                 role: .all
             )
+            recordPreviousHandler(previous, replacement: application.reference,
+                                  for: association, backend: .modern, role: .all)
             invalidateAssociation(association)
         }
     }
@@ -707,7 +752,7 @@ final class AppStore: ObservableObject {
         switch selectedTab {
         case .urlSchemes: return snapshot.urlSchemes.compactMap { try? .urlScheme($0.identifier) }
         case .contentTypes: return snapshot.contentTypes.filter { showAllContentTypes || $0.isFileType != false }.compactMap { try? .contentType($0.identifier) }
-        case .general, .applications, .diagnostics: return []
+        case .general, .myHandlers, .applications, .diagnostics: return []
         }
     }
 
@@ -911,7 +956,7 @@ final class AppStore: ObservableObject {
 
     private func assignDefault(_ application: ApplicationReference, for association: Association,
                                using overrideBackend: Backend? = nil) async -> Bool {
-        guard pendingMutation == nil else { return false }
+        guard pendingMutation == nil, !isRestoringOwnedHandlers else { return false }
         let requestedBackend = overrideBackend ?? backend
         let requestedRole: HandlerRole = overrideBackend == nil && selectedTab != .applications ? effectiveRole : .all
         pendingMutation = application.id
@@ -921,12 +966,17 @@ final class AppStore: ObservableObject {
         defer { pendingMutation = nil }
 
         do {
+            let previous = application.id == ownApplication.id
+                ? try? await service.defaultApplication(for: association, backend: requestedBackend, role: requestedRole)
+                : nil
             try await service.setDefaultApplication(
                 application,
                 for: association,
                 backend: requestedBackend,
                 role: requestedRole
             )
+            recordPreviousHandler(previous, replacement: application,
+                                  for: association, backend: requestedBackend, role: requestedRole)
             if selectedAssociation == association {
                 await loadHandlers()
             } else {
@@ -945,6 +995,125 @@ final class AppStore: ObservableObject {
         }
     }
 
+    private func recordPreviousHandler(_ previous: ApplicationRecord?, replacement: ApplicationReference,
+                                       for association: Association, backend: Backend, role: HandlerRole) {
+        if replacement.id == ownApplication.id {
+            guard let previous, previous.id != ownApplication.id else { return }
+            previousHandlers.removeAll { $0.matches(association, backend: backend, role: role) }
+            previousHandlers.append(PreviousHandler(association: association, backend: backend,
+                                                    role: role, application: previous.reference))
+        } else {
+            previousHandlers.removeAll { $0.matches(association, backend: backend, role: role) }
+        }
+        if let data = try? JSONEncoder().encode(previousHandlers) {
+            userDefaults?.set(data, forKey: PreferenceKey.previousHandlers)
+        }
+    }
+
+    func loadOwnedHandlers() async {
+        if snapshot == nil { guard await load() else { return } }
+        guard let snapshot else { return }
+        ownedHandlersRequestGeneration &+= 1
+        let generation = ownedHandlersRequestGeneration
+        isLoadingOwnedHandlers = true
+        ownedHandlersError = nil
+        defer { if ownedHandlersRequestGeneration == generation { isLoadingOwnedHandlers = false } }
+
+        let associations = snapshot.urlSchemes.compactMap { try? Association.urlScheme($0.identifier) }
+            + snapshot.contentTypes.compactMap { try? Association.contentType($0.identifier) }
+        let keys = Set(associations.map { LookupKey(association: $0, backend: .modern, role: .all) }
+            + previousHandlers.map { LookupKey(association: $0.association, backend: $0.backend, role: $0.role) })
+            .sorted { left, right in
+                if left.association.kind != right.association.kind {
+                    return left.association.kind.rawValue < right.association.kind.rawValue
+                }
+                if left.association.identifier != right.association.identifier {
+                    return left.association.identifier < right.association.identifier
+                }
+                return left.backend.rawValue < right.backend.rawValue
+            }
+        let saved = previousHandlers
+        let service = service
+        let ownID = ownApplication.id
+        var found: [OwnedHandler] = []
+        var failures = 0
+        await withTaskGroup(of: (LookupKey, ApplicationRecord?, [ApplicationRecord]?, Bool).self) { group in
+            var next = 0
+            func enqueue() {
+                let key = keys[next]
+                next += 1
+                let hasSaved = saved.contains { $0.matches(key.association, backend: key.backend, role: key.role) }
+                group.addTask {
+                    do {
+                        let current = try await service.defaultApplication(for: key.association,
+                                                                            backend: key.backend, role: key.role)
+                        guard current?.id == ownID else { return (key, current, nil, false) }
+                        guard !hasSaved else { return (key, current, nil, false) }
+                        do {
+                            let applications = try await service.applications(
+                                capableOf: key.association, backend: key.backend, role: key.role)
+                            return (key, current, applications, false)
+                        } catch {
+                            return (key, current, nil, true)
+                        }
+                    } catch { return (key, nil, nil, true) }
+                }
+            }
+            for _ in 0..<min(4, keys.count) { enqueue() }
+            for await (key, current, applications, failed) in group {
+                guard !Task.isCancelled, ownedHandlersRequestGeneration == generation else {
+                    group.cancelAll()
+                    return
+                }
+                if failed { failures += 1 }
+                if current?.id == ownID {
+                    let previous = saved.first { $0.matches(key.association, backend: key.backend, role: key.role) }
+                    let candidate: ApplicationRecord?
+                    if let previous {
+                        candidate = snapshot.applications.first { $0.id == previous.application.id }
+                            ?? ApplicationRecord(url: previous.application.url,
+                                                 bundleIdentifier: previous.application.bundleIdentifier,
+                                                 displayName: previous.application.url.deletingPathExtension().lastPathComponent)
+                    } else {
+                        candidate = applications?.first { $0.id != ownID }
+                    }
+                    found.append(OwnedHandler(association: key.association, backend: key.backend,
+                                              role: key.role, previousApplication: candidate,
+                                              isAutomaticallyDetermined: previous == nil && candidate != nil))
+                }
+                if next < keys.count { enqueue() }
+            }
+        }
+        guard ownedHandlersRequestGeneration == generation else { return }
+        ownedHandlers = found.sorted { $0.id < $1.id }
+        if failures > 0 { ownedHandlersError = "Could not inspect \(failures) association(s). Refresh to try again." }
+    }
+
+    func restorePreviousHandlers() async {
+        guard !isRestoringOwnedHandlers, pendingMutation == nil, !isCreatingAssociation else { return }
+        isRestoringOwnedHandlers = true
+        ownedHandlersError = nil
+        var failures: [String] = []
+        for row in ownedHandlers {
+            guard let previous = row.previousApplication else { continue }
+            do {
+                let current = try await service.defaultApplication(for: row.association,
+                                                                    backend: row.backend, role: row.role)
+                guard current?.id == ownApplication.id else { continue }
+                try await service.setDefaultApplication(previous.reference, for: row.association,
+                                                        backend: row.backend, role: row.role)
+                recordPreviousHandler(nil, replacement: previous.reference, for: row.association,
+                                      backend: row.backend, role: row.role)
+                invalidateAssociation(row.association)
+            } catch {
+                failures.append("\(row.association.identifier): \(error.localizedDescription)")
+            }
+        }
+        await loadOwnedHandlers()
+        if !failures.isEmpty { ownedHandlersError = failures.joined(separator: "\n") }
+        isRestoringOwnedHandlers = false
+    }
+
     private func invalidateAssociation(_ association: Association) {
         for key in Set(lookupVersions.keys).union(defaultCache.keys).union(handlerCache.keys) where key.association == association {
             lookupVersions[key, default: 0] &+= 1
@@ -961,7 +1130,7 @@ final class AppStore: ObservableObject {
             return try? Association.urlScheme(selectedAssociationID)
         case .contentTypes:
             return try? Association.contentType(selectedAssociationID)
-        case .general, .applications, .diagnostics:
+        case .general, .myHandlers, .applications, .diagnostics:
             return nil
         }
     }
@@ -998,7 +1167,7 @@ final class AppStore: ObservableObject {
             validAssociationIDs = Set(snapshot.urlSchemes.map(\.id))
         case .contentTypes:
             validAssociationIDs = Set(snapshot.contentTypes.map(\.id))
-        case .general, .applications, .diagnostics:
+        case .general, .myHandlers, .applications, .diagnostics:
             validAssociationIDs = []
         }
 

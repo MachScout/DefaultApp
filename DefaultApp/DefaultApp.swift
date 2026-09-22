@@ -36,15 +36,17 @@ private struct DefaultAppCommands: Commands {
         CommandGroup(replacing: .toolbar) {
             Button("General") { store.selectTab(.general) }
                 .keyboardShortcut("1", modifiers: .command)
-            Button("URL Schemes") { store.selectTab(.urlSchemes) }
+            Button("My Handlers") { store.selectTab(.myHandlers) }
                 .keyboardShortcut("2", modifiers: .command)
-            Button("Content Types") { store.selectTab(.contentTypes) }
+            Button("URL Schemes") { store.selectTab(.urlSchemes) }
                 .keyboardShortcut("3", modifiers: .command)
-            Button("Applications") { store.selectTab(.applications) }
+            Button("Content Types") { store.selectTab(.contentTypes) }
                 .keyboardShortcut("4", modifiers: .command)
+            Button("Applications") { store.selectTab(.applications) }
+                .keyboardShortcut("5", modifiers: .command)
             if store.showsDiagnostics {
                 Button("Diagnostics") { store.selectTab(.diagnostics) }
-                    .keyboardShortcut("5", modifiers: .command)
+                    .keyboardShortcut("6", modifiers: .command)
             }
             Divider()
             Picker("Handler Backend", selection: Binding(

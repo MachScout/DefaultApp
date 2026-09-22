@@ -16,6 +16,86 @@ final class AppStoreTests: XCTestCase, @unchecked Sendable {
         bundleIdentifier: "org.mozilla.firefox",
         displayName: "Firefox"
     )
+    private let ownApplication = ApplicationReference(
+        url: URL(fileURLWithPath: "/Applications/DefaultApp.app"),
+        bundleIdentifier: "app.default"
+    )
+
+    @MainActor
+    func testTakingOverHandlerPersistsPreviousApplicationAndRestoreUsesIt() async throws {
+        let association = try Association.urlScheme("mailto")
+        let suite = "AppStoreTests.previous.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let service = FakeService(snapshot: sampleSnapshot,
+                                  handlerApplicationsByAssociation: [association: [safari, firefox]],
+                                  defaultApplicationsByAssociation: [association: firefox])
+        let store = AppStore(service: service, customAssociationStore: MemoryCustomAssociations(),
+                             customTypeRegistrar: TestTypeRegistrar(), userDefaults: defaults,
+                             ownApplication: ownApplication)
+        await store.load()
+        await store.setDefault(ownApplication, for: association)
+
+        let relaunched = AppStore(service: service, customAssociationStore: MemoryCustomAssociations(),
+                                 customTypeRegistrar: TestTypeRegistrar(), userDefaults: defaults,
+                                 ownApplication: ownApplication)
+        await relaunched.load()
+        await relaunched.loadOwnedHandlers()
+        XCTAssertEqual(relaunched.ownedHandlers.count, 1)
+        XCTAssertEqual(relaunched.ownedHandlers.first?.previousApplication?.id, firefox.id)
+        XCTAssertFalse(relaunched.ownedHandlers.first?.isAutomaticallyDetermined ?? true)
+
+        await relaunched.restorePreviousHandlers()
+        let restoredDefault = await service.recordedDefault(for: association)
+        XCTAssertEqual(restoredDefault?.id, firefox.id)
+        XCTAssertTrue(relaunched.ownedHandlers.isEmpty)
+    }
+
+    @MainActor
+    func testOwnedHandlerWithoutHistoryUsesFirstOtherRegisteredApplication() async throws {
+        let association = try Association.urlScheme("mailto")
+        let service = FakeService(snapshot: sampleSnapshot,
+                                  handlerApplicationsByAssociation: [association: [safari, firefox]],
+                                  defaultApplicationsByAssociation: [association: ApplicationRecord(
+                                    url: ownApplication.url, bundleIdentifier: ownApplication.bundleIdentifier,
+                                    displayName: "DefaultApp")])
+        let store = AppStore(service: service, customAssociationStore: MemoryCustomAssociations(),
+                             customTypeRegistrar: TestTypeRegistrar(), ownApplication: ownApplication)
+        await store.load()
+        await store.loadOwnedHandlers()
+
+        XCTAssertEqual(store.ownedHandlers.first?.previousApplication?.id, safari.id)
+        XCTAssertEqual(store.ownedHandlers.first?.isAutomaticallyDetermined, true)
+
+        await store.restorePreviousHandlers()
+        let restoredDefault = await service.recordedDefault(for: association)
+        XCTAssertEqual(restoredDefault?.id, safari.id)
+    }
+
+    @MainActor
+    func testRestoreContinuesAfterOneHandlerFails() async throws {
+        let scheme = try Association.urlScheme("mailto")
+        let type = try Association.contentType("public.text")
+        let own = ApplicationRecord(url: ownApplication.url,
+                                    bundleIdentifier: ownApplication.bundleIdentifier,
+                                    displayName: "DefaultApp")
+        let service = FakeService(snapshot: sampleSnapshot,
+                                  handlerApplications: [safari],
+                                  defaultApplicationsByAssociation: [scheme: own, type: own],
+                                  mutationPlans: [.init(error: .mutationRejected), .init()])
+        let store = AppStore(service: service, customAssociationStore: MemoryCustomAssociations(),
+                             customTypeRegistrar: TestTypeRegistrar(), ownApplication: ownApplication)
+        await store.load()
+        await store.loadOwnedHandlers()
+        XCTAssertEqual(store.ownedHandlers.count, 2)
+
+        await store.restorePreviousHandlers()
+
+        XCTAssertEqual(store.ownedHandlers.map(\.association), [type])
+        XCTAssertNotNil(store.ownedHandlersError)
+        let restoredScheme = await service.recordedDefault(for: scheme)
+        XCTAssertEqual(restoredScheme?.id, safari.id)
+    }
 
     @MainActor
     func testGeneralTabIsSelectedBeforeCatalogLoads() {
@@ -325,7 +405,7 @@ final class AppStoreTests: XCTestCase, @unchecked Sendable {
                 XCTAssertEqual(window.contentLayoutRect.width, size.width, accuracy: 1, "\(tab), empty selection")
                 XCTAssertEqual(window.contentLayoutRect.height, size.height, accuracy: 1, "\(tab), empty selection")
                 switch tab {
-                case .general: break
+                case .general, .myHandlers: break
                 case .urlSchemes: store.selectedAssociationID = "example"
                 case .contentTypes: store.selectedAssociationID = longIdentifier
                 case .applications: store.selectedApplicationID = application.id
