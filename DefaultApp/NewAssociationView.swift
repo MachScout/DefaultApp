@@ -20,6 +20,7 @@ struct NewAssociationView: View {
     }
 
     private var isURLScheme: Bool { draft.kind == .urlScheme }
+    private var isDynamic: Bool { !isURLScheme && draft.contentTypeCreation == .dynamic }
     private var duplicate: Association? { savedAssociation == nil ? store.existingAssociation(for: draft) : nil }
     private var validationError: CustomAssociationValidationError? {
         do { _ = try draft.validatedRecord(); return nil }
@@ -41,13 +42,24 @@ struct NewAssociationView: View {
         VStack(alignment: .leading, spacing: 18) {
             VStack(alignment: .leading, spacing: 6) {
                 Text(isURLScheme ? "New URL Scheme" : "New Content Type").font(.title2).fontWeight(.semibold)
-                Text(isURLScheme ? "Choose how links with this scheme open." : "Define a file format and register it with macOS.")
+                Text(isURLScheme ? "Choose how links with this scheme open." : isDynamic
+                     ? "Associate an undeclared filename extension without adding an Info.plist type declaration."
+                     : "Define a file format and register it with macOS.")
                     .foregroundStyle(.secondary)
             }
             VStack(alignment: .leading, spacing: 16) {
-                field(isURLScheme ? "Scheme" : "Identifier (UTI)", text: $draft.identifier,
-                      placeholder: isURLScheme ? "myproject" : "com.example.myproject", errorField: .identifier)
-                    .focused($identifierFocused)
+                if !isURLScheme {
+                    Picker("Type creation", selection: $draft.contentTypeCreation) {
+                        Text("Declare a type").tag(ContentTypeCreation.declared)
+                        Text("Use a dynamic type").tag(ContentTypeCreation.dynamic)
+                    }
+                    .pickerStyle(.segmented)
+                }
+                if !isDynamic {
+                    field(isURLScheme ? "Scheme" : "Identifier (UTI)", text: $draft.identifier,
+                          placeholder: isURLScheme ? "myproject" : "com.example.myproject", errorField: .identifier)
+                        .focused($identifierFocused)
+                }
                 if let duplicate {
                     HStack(alignment: .top) {
                         Label("This identifier already exists.", systemImage: "info.circle")
@@ -62,7 +74,12 @@ struct NewAssociationView: View {
                     Text("Example: \(draft.parsedAssociation?.identifier ?? "myproject")://open")
                         .font(.callout).foregroundStyle(.secondary)
                 }
-                if !isURLScheme {
+                if isDynamic {
+                    field("Filename extension", text: $draft.filenameExtensions,
+                          placeholder: "myproj", errorField: .filenameExtensions)
+                    Text("macOS generates \(draft.parsedAssociation?.identifier ?? "a dyn.* identifier") from this extension. Choose an application to save its default handler.")
+                        .font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
+                } else if !isURLScheme {
                     field("Name", text: $draft.name, placeholder: "Project Document", errorField: .name)
                     field("Filename extensions", text: $draft.filenameExtensions,
                           placeholder: "myproj, project", errorField: .filenameExtensions)
@@ -98,7 +115,10 @@ struct NewAssociationView: View {
                     Text(otherApplication.url.path).font(.caption).foregroundStyle(.secondary)
                         .lineLimit(2).truncationMode(.middle).textSelection(.enabled)
                 }
-                if isURLScheme && selectedApplication == nil {
+                if isDynamic && selectedApplication == nil {
+                    Text("A dynamic type needs a default application to create a Launch Services preference.")
+                        .font(.caption).foregroundStyle(.secondary)
+                } else if isURLScheme && selectedApplication == nil {
                     Text("Saved in DefaultApp. Choose an application to enable opening links.")
                         .font(.caption).foregroundStyle(.secondary)
                 }
@@ -128,6 +148,7 @@ struct NewAssociationView: View {
                 Button(primaryTitle) { Task { await create() } }
                     .keyboardShortcut(.defaultAction)
                     .disabled(store.isCreatingAssociation || duplicate != nil || validationError != nil
+                              || (isDynamic && selectedApplication == nil)
                               || (savedAssociation == nil && !store.canCreateAssociation))
             }
         }

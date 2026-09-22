@@ -26,6 +26,8 @@ public struct ContentTypeRecord: Hashable, Codable, Identifiable, Sendable {
     public let declaringApplication: ApplicationReference?
     /// nil supports snapshots produced before filesystem classification was recorded.
     public let isFileType: Bool?
+    /// True when macOS generated the identifier from a tag without a declaration.
+    public let isDynamic: Bool?
 
     public var id: String { identifier }
 
@@ -35,7 +37,8 @@ public struct ContentTypeRecord: Hashable, Codable, Identifiable, Sendable {
         tags: [String: [String]] = [:],
         supertypes: [String] = [],
         declaringApplication: ApplicationReference? = nil,
-        isFileType: Bool? = nil
+        isFileType: Bool? = nil,
+        isDynamic: Bool? = nil
     ) {
         self.identifier = identifier
         self.localizedDescription = localizedDescription
@@ -43,6 +46,7 @@ public struct ContentTypeRecord: Hashable, Codable, Identifiable, Sendable {
         self.supertypes = supertypes
         self.declaringApplication = declaringApplication
         self.isFileType = isFileType
+        self.isDynamic = isDynamic
     }
 }
 

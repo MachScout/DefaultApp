@@ -4,6 +4,37 @@ import Testing
 import DefaultAppCore
 
 struct CustomAssociationTests {
+    @Test func dynamicTypeUsesSystemGeneratedIdentifierAndOneExtension() throws {
+        var draft = NewAssociationDraft(kind: .contentType)
+        draft.contentTypeCreation = .dynamic
+        draft.filenameExtensions = "machscouttestxyz123"
+        let record = try draft.validatedRecord()
+        #expect(record.creation == .dynamic)
+        #expect(record.association.identifier.hasPrefix("dyn."))
+        #expect(record.filenameExtensions == ["machscouttestxyz123"])
+    }
+
+    @Test func dynamicTypeRejectsKnownExtension() {
+        var draft = NewAssociationDraft(kind: .contentType)
+        draft.contentTypeCreation = .dynamic
+        draft.filenameExtensions = "txt"
+        #expect(throws: CustomAssociationValidationError.self) { try draft.validatedRecord() }
+    }
+
+    @Test func savedDynamicAssociationSurvivesADeclarationForItsExtension() throws {
+        var draft = NewAssociationDraft(kind: .contentType)
+        draft.contentTypeCreation = .dynamic
+        draft.filenameExtensions = "defaultappdecodexyz123"
+        let oldIdentifier = try draft.validatedRecord().association.identifier
+        let json = """
+        {"association":{"kind":"contentType","identifier":"\(oldIdentifier)"},
+         "filenameExtensions":["txt"],"creation":"dynamic"}
+        """
+        let record = try JSONDecoder().decode(CustomAssociation.self, from: Data(json.utf8))
+        #expect(record.association.identifier == oldIdentifier)
+        #expect(record.filenameExtensions == ["txt"])
+        #expect(record.creation == .dynamic)
+    }
     @Test(arguments: ["My+Scheme", " My+Scheme: ", " My+Scheme:// "])
     func normalizesScheme(_ input: String) throws {
         var draft = NewAssociationDraft(kind: .urlScheme)

@@ -1,4 +1,5 @@
 import Foundation
+import UniformTypeIdentifiers
 import XCTest
 @testable import DefaultAppCore
 
@@ -6,11 +7,28 @@ final class ApplicationCatalogTests: XCTestCase, @unchecked Sendable {
     private let mailURL = URL(fileURLWithPath: "/Applications/Mail.app")
     private let sampleURL = URL(fileURLWithPath: "/Applications/Sample.app")
 
+    func testCatalogIncludesDynamicExtensionPreference() async throws {
+        let extensionTag = "defaultappcatalogtestxyz123"
+        let type = try XCTUnwrap(UTType(filenameExtension: extensionTag))
+        XCTAssertTrue(type.isDynamic)
+        let catalog = ApplicationCatalog(
+            spi: FakeSPI(),
+            dynamicTypeDiscovery: FixtureDynamicDiscovery(values: [
+                DynamicTypePreference(identifier: type.identifier, filenameExtension: extensionTag)
+            ])
+        )
+        let snapshot = try await catalog.loadCatalog()
+        let record = try XCTUnwrap(snapshot.contentTypes.first { $0.identifier == type.identifier })
+        XCTAssertEqual(record.tags["public.filename-extension"], [extensionTag])
+        XCTAssertEqual(record.isDynamic, true)
+        XCTAssertEqual(record.isFileType, true)
+    }
+
     func testCatalogMergesDirectoryURLSpellingsAcrossApplicationsAndSchemeHandlers() async throws {
         let directory = URL(fileURLWithPath: "/Fixture/Reader.app", isDirectory: true)
         let alternate = URL(fileURLWithPath: "/Fixture/Reader.app", isDirectory: false)
         let spi = FakeSPI(applications: [directory, alternate], schemeHandlers: [("reader", alternate), ("reader", directory)])
-        let catalog = ApplicationCatalog(spi: spi, infoDictionary: { _ in
+        let catalog = ApplicationCatalog(spi: spi, dynamicTypeDiscovery: FixtureDynamicDiscovery(), infoDictionary: { _ in
             ["CFBundleIdentifier": "test.reader", "CFBundleURLTypes": [["CFBundleURLSchemes": ["reader"]]]]
         })
         let snapshot = try await catalog.loadCatalog()
@@ -32,7 +50,7 @@ final class ApplicationCatalogTests: XCTestCase, @unchecked Sendable {
             typeIdentifiers: ["public.text", " PUBLIC.TEXT "]
         )
         let sampleURL = sampleURL
-        let catalog = ApplicationCatalog(spi: spi, infoDictionary: { url in
+        let catalog = ApplicationCatalog(spi: spi, dynamicTypeDiscovery: FixtureDynamicDiscovery(), infoDictionary: { url in
             url == sampleURL ? [
                 "CFBundleIdentifier": "test.sample",
                 "CFBundleURLTypes": [["CFBundleURLSchemes": ["sample", "sample-secure"]]]
@@ -53,7 +71,7 @@ final class ApplicationCatalogTests: XCTestCase, @unchecked Sendable {
 
     func testUnreadableBundlePreservesPartialRecordAndOtherDeclarations() async throws {
         let mailURL = mailURL
-        let catalog = ApplicationCatalog(spi: FakeSPI(applications: [sampleURL, mailURL]), infoDictionary: { url in
+        let catalog = ApplicationCatalog(spi: FakeSPI(applications: [sampleURL, mailURL]), dynamicTypeDiscovery: FixtureDynamicDiscovery(), infoDictionary: { url in
             if url == mailURL { throw DefaultAppError.unreadableBundleMetadata(url: url) }
             return ["CFBundleURLTypes": [["CFBundleURLSchemes": ["sample", "bad scheme"]]]]
         })
@@ -66,7 +84,7 @@ final class ApplicationCatalogTests: XCTestCase, @unchecked Sendable {
     }
 
     func testBundleTypesAndClaimsMergeWithSystemIdentifiers() async throws {
-        let catalog = ApplicationCatalog(spi: FakeSPI(applications: [sampleURL], typeIdentifiers: ["public.text"]), infoDictionary: { _ in
+        let catalog = ApplicationCatalog(spi: FakeSPI(applications: [sampleURL], typeIdentifiers: ["public.text"]), dynamicTypeDiscovery: FixtureDynamicDiscovery(), infoDictionary: { _ in
             [
                 "CFBundleIdentifier": "test.sample",
                 "CFBundleDocumentTypes": [["LSItemContentTypes": ["test.claim"]]],
@@ -91,7 +109,7 @@ final class ApplicationCatalogTests: XCTestCase, @unchecked Sendable {
 
     func testCacheRetainsSnapshotUntilRefreshOrInvalidation() async throws {
         let metadata = MutableMetadata()
-        let catalog = ApplicationCatalog(spi: FakeSPI(applications: [sampleURL]), infoDictionary: { _ in metadata.read() })
+        let catalog = ApplicationCatalog(spi: FakeSPI(applications: [sampleURL]), dynamicTypeDiscovery: FixtureDynamicDiscovery(), infoDictionary: { _ in metadata.read() })
         let first = try await catalog.loadCatalog()
         metadata.setName("Changed")
         let cached = try await catalog.loadCatalog()
@@ -115,7 +133,7 @@ final class ApplicationCatalogTests: XCTestCase, @unchecked Sendable {
         }
         let metadata = MutableMetadata()
         let spi = CountingSPI(base: FakeSPI(applications: [first, second]))
-        let catalog = ApplicationCatalog(spi: spi, infoDictionary: { _ in metadata.read() })
+        let catalog = ApplicationCatalog(spi: spi, dynamicTypeDiscovery: FixtureDynamicDiscovery(), infoDictionary: { _ in metadata.read() })
         let initial = try await catalog.loadCatalog()
         XCTAssertEqual(metadata.readCount, 2)
         let refreshed = try await catalog.loadCatalog(forceRefresh: true)
@@ -136,7 +154,7 @@ final class ApplicationCatalogTests: XCTestCase, @unchecked Sendable {
 
     func testSelectedBundleRefreshUpdatesAndRemovesItsDeclarations() async throws {
         let metadata = MutableMetadata()
-        let catalog = ApplicationCatalog(spi: FakeSPI(applications: [sampleURL]), infoDictionary: { _ in
+        let catalog = ApplicationCatalog(spi: FakeSPI(applications: [sampleURL]), dynamicTypeDiscovery: FixtureDynamicDiscovery(), infoDictionary: { _ in
             let name = metadata.read()["CFBundleName"] as! String
             return ["CFBundleName": name,
                     "CFBundleURLTypes": [["CFBundleURLSchemes": [name.lowercased()]]],
@@ -152,7 +170,7 @@ final class ApplicationCatalogTests: XCTestCase, @unchecked Sendable {
     }
 
     func testCatalogClassifiesFileTypesSeparatelyFromHardwareAndUnknownDeclarations() async throws {
-        let catalog = ApplicationCatalog(spi: FakeSPI(typeIdentifiers: ["public.text", "public.directory", "public.device", "test.defaultapp.unknown"]))
+        let catalog = ApplicationCatalog(spi: FakeSPI(typeIdentifiers: ["public.text", "public.directory", "public.device", "test.defaultapp.unknown"]), dynamicTypeDiscovery: FixtureDynamicDiscovery())
         let snapshot = try await catalog.loadCatalog()
         let classifications = Dictionary(uniqueKeysWithValues: snapshot.contentTypes.map { ($0.identifier, $0.isFileType) })
         XCTAssertEqual(classifications["public.text"], true)
@@ -163,14 +181,14 @@ final class ApplicationCatalogTests: XCTestCase, @unchecked Sendable {
 
     func testSPIFailureIsPropagated() async {
         let error = DefaultAppError.privateSPIFailure(symbol: "_LSCopyAllApplicationURLs", status: -50)
-        let catalog = ApplicationCatalog(spi: FakeSPI(failure: error))
+        let catalog = ApplicationCatalog(spi: FakeSPI(failure: error), dynamicTypeDiscovery: FixtureDynamicDiscovery())
         await XCTAssertThrowsErrorAsync({ try await catalog.loadCatalog() }) {
             XCTAssertEqual($0 as? DefaultAppError, error)
         }
     }
 
     func testMismatchedSchemeArraysBecomeDiagnosticFailure() async {
-        let catalog = ApplicationCatalog(spi: FakeSPI(rawSchemes: ["mailto", "http"], rawHandlerURLs: [mailURL]))
+        let catalog = ApplicationCatalog(spi: FakeSPI(rawSchemes: ["mailto", "http"], rawHandlerURLs: [mailURL]), dynamicTypeDiscovery: FixtureDynamicDiscovery())
         await XCTAssertThrowsErrorAsync({ try await catalog.loadCatalog() }) {
             XCTAssertEqual($0 as? DefaultAppError, .malformedSPIPayload(symbol: "_LSCopySchemesAndHandlerURLs"))
         }
@@ -178,7 +196,7 @@ final class ApplicationCatalogTests: XCTestCase, @unchecked Sendable {
 
     func testWildcardRegistrationRemainsAnApplicationButNotAConcreteScheme() async throws {
         let pairs = try SilgenLaunchServicesSPI.schemePairs(schemes: ["*", "mailto"], handlerURLs: [sampleURL, mailURL], status: 0)
-        let catalog = ApplicationCatalog(spi: FakeSPI(schemeHandlers: pairs), infoDictionary: { _ in [:] })
+        let catalog = ApplicationCatalog(spi: FakeSPI(schemeHandlers: pairs), dynamicTypeDiscovery: FixtureDynamicDiscovery(), infoDictionary: { _ in [:] })
         let snapshot = try await catalog.loadCatalog()
         XCTAssertEqual(snapshot.applications.map(\.url), [mailURL, sampleURL])
         XCTAssertEqual(snapshot.urlSchemes.map(\.identifier), ["mailto"])
@@ -242,6 +260,11 @@ private struct FakeSPI: PrivateLaunchServicesProviding {
         return schemeHandlers
     }
     func declaredTypeIdentifiers() throws -> [String] { typeIdentifiers }
+}
+
+private struct FixtureDynamicDiscovery: DynamicTypeDiscovering {
+    var values: [DynamicTypePreference] = []
+    func discover() throws -> [DynamicTypePreference] { values }
 }
 
 private final class MutableMetadata: @unchecked Sendable {

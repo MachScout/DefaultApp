@@ -46,6 +46,18 @@ final class ViewProjectionTests: XCTestCase {
         XCTAssertEqual(rows.first?.filenameExtensions, ["text", "txt"])
     }
 
+    func testOnlyDynamicFilterUsesSystemClassification() {
+        let snapshot = CatalogSnapshot(contentTypes: [
+            ContentTypeRecord(identifier: "public.text", isFileType: true, isDynamic: false),
+            ContentTypeRecord(identifier: "dyn.ah62d4rv4ge", tags: ["public.filename-extension": ["examplexyz"]],
+                              isFileType: true, isDynamic: true),
+        ])
+        let rows = AssociationListIndex(snapshot: snapshot, kind: .contentType)
+            .rows(defaults: [:], search: "", filters: .init(onlyDynamic: true))
+        XCTAssertEqual(rows.map(\.identifier), ["dyn.ah62d4rv4ge"])
+        XCTAssertEqual(rows.first?.filenameExtensions, ["examplexyz"])
+    }
+
     func testContentTypeFiltersHideRowsWithoutExtensionsOrResolvedDefaults() throws {
         let text = try Association.contentType("public.text")
         let data = try Association.contentType("public.data")

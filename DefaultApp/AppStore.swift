@@ -292,7 +292,8 @@ final class AppStore: ObservableObject {
             showAllContentTypes = userDefaults.bool(forKey: PreferenceKey.showAllContentTypes)
             contentTypeFilters = ContentTypeFilters(
                 hideWithoutExtensions: userDefaults.bool(forKey: PreferenceKey.hideContentTypesWithoutExtensions),
-                hideWithoutDefaultApplication: userDefaults.bool(forKey: PreferenceKey.hideContentTypesWithoutDefaultApplication)
+                hideWithoutDefaultApplication: userDefaults.bool(forKey: PreferenceKey.hideContentTypesWithoutDefaultApplication),
+                onlyDynamic: userDefaults.bool(forKey: PreferenceKey.onlyDynamicContentTypes)
             )
             applicationFilters = ApplicationFilters(
                 hideAuxiliary: userDefaults.bool(forKey: PreferenceKey.hideAuxiliaryApplications),
@@ -441,6 +442,7 @@ final class AppStore: ObservableObject {
         static let showAllContentTypes = "contentTypes.showAllIdentifiers"
         static let hideContentTypesWithoutExtensions = "contentTypes.hideWithoutExtensions"
         static let hideContentTypesWithoutDefaultApplication = "contentTypes.hideWithoutDefaultApplication"
+        static let onlyDynamicContentTypes = "contentTypes.onlyDynamic"
         static let hideAuxiliaryApplications = "applications.hideAuxiliary"
         static let hideDevelopmentApplications = "applications.hideDevelopment"
         static let hideApplicationsWithoutAssociations = "applications.hideWithoutAssociations"
@@ -470,6 +472,7 @@ final class AppStore: ObservableObject {
                                     forKey: PreferenceKey.hideContentTypesWithoutExtensions)
             self?.userDefaults?.set(value.hideWithoutDefaultApplication,
                                     forKey: PreferenceKey.hideContentTypesWithoutDefaultApplication)
+            self?.userDefaults?.set(value.onlyDynamic, forKey: PreferenceKey.onlyDynamicContentTypes)
         }
             .store(in: &preferenceCancellables)
         $associationSort.dropFirst().sink { [weak self] value in
@@ -906,10 +909,11 @@ final class AppStore: ObservableObject {
         _ = await assignDefault(application, for: association)
     }
 
-    private func assignDefault(_ application: ApplicationReference, for association: Association) async -> Bool {
+    private func assignDefault(_ application: ApplicationReference, for association: Association,
+                               using overrideBackend: Backend? = nil) async -> Bool {
         guard pendingMutation == nil else { return false }
-        let requestedBackend = backend
-        let requestedRole: HandlerRole = selectedTab == .applications ? .all : effectiveRole
+        let requestedBackend = overrideBackend ?? backend
+        let requestedRole: HandlerRole = overrideBackend == nil && selectedTab != .applications ? effectiveRole : .all
         pendingMutation = application.id
         // Supersede reads already in flight for this association in every backend/role.
         invalidateAssociation(association)
@@ -1037,6 +1041,9 @@ extension AppStore {
         let record: CustomAssociation
         do { record = try draft.validatedRecord() }
         catch { return .failed(error.localizedDescription) }
+        if record.creation == .dynamic && application == nil {
+            return .failed("Choose an application to create a handler preference for this dynamic type.")
+        }
 
         isCreatingAssociation = true
         defer { isCreatingAssociation = false }
@@ -1069,7 +1076,8 @@ extension AppStore {
 
     private func finishCreating(_ record: CustomAssociation, application: ApplicationReference?) async -> CreationResult {
         let association = record.association
-        if association.kind == .contentType, customRegistrationStates[association] != .registered {
+        if association.kind == .contentType, record.creation == .declared,
+           customRegistrationStates[association] != .registered {
             customRegistrationStates[association] = .registering
             do {
                 try await customTypeRegistrar.register(record)
@@ -1083,7 +1091,8 @@ extension AppStore {
             }
         }
         if let application {
-            guard await assignDefault(application, for: association) else {
+            guard await assignDefault(application, for: association,
+                                      using: record.creation == .dynamic ? .legacy : nil) else {
                 return .savedWithIssue(association, "Saved, but the default application was not confirmed. \(presentedError?.message ?? "Try again or choose another application.")")
             }
         }
@@ -1112,7 +1121,7 @@ extension AppStore {
     }
 
     private func refreshCustomRegistrationStates() async {
-        for record in customAssociations {
+        for record in customAssociations where record.creation == .declared {
             let registered = await customTypeRegistrar.isRegistered(record)
             if registered { customRegistrationStates[record.association] = .registered }
             else if case .failed = customRegistrationStates[record.association] { continue }
@@ -1134,7 +1143,7 @@ extension AppStore {
                     types[identifier] = ContentTypeRecord(identifier: identifier,
                         localizedDescription: metadata.localizedDescription, tags: metadata.tags,
                         supertypes: metadata.supertypes, declaringApplication: types[identifier]?.declaringApplication,
-                        isFileType: true)
+                        isFileType: true, isDynamic: record.creation == .dynamic)
                 }
             }
         }

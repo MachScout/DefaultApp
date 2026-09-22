@@ -139,6 +139,7 @@ struct RootView: View {
                                 HStack {
                                     Menu {
                                         Toggle("Show all identifiers", isOn: $store.showAllContentTypes)
+                                        Toggle("Only dynamic types", isOn: $store.contentTypeFilters.onlyDynamic)
                                         Toggle("Hide rows without extensions",
                                                isOn: $store.contentTypeFilters.hideWithoutExtensions)
                                         Toggle("Hide rows without a default application",

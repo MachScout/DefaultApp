@@ -64,6 +64,21 @@ content types it handles. You can change individual defaults from the same view.
 Use the add button in **URL Schemes** or **Content Types** to register a custom
 association and optionally assign its handler immediately.
 
+For an undeclared file extension, choose **Use a dynamic type** in the content
+type form. Enter one extension and choose an application. macOS derives a
+`dyn.*` identifier from the extension; DefaultApp saves the default handler for
+that identifier through Launch Services. It does not install a type declaration
+or teach the selected app to read the file format. A handler selection is
+required because resolving the dynamic identifier alone does not register a
+handler preference.
+
+The **Only dynamic types** filter shows dynamic types found in Launch Services
+handler preferences. DefaultApp reads these from `lsregister -dump` because the
+available public APIs query handlers for a known content type but do not list
+all handler preferences. The dump is diagnostic output rather than a stable
+API; a format change may hide entries, while a command failure appears in
+Diagnostics.
+
 <table>
   <tr>
     <td width="50%"><img src="docs/images/add-url-scheme.png" alt="New URL Scheme dialog"></td>

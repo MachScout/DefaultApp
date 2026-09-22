@@ -1,5 +1,11 @@
 import Foundation
+import UniformTypeIdentifiers
 import DefaultAppCore
+
+enum ContentTypeCreation: String, Codable, Sendable {
+    case declared
+    case dynamic
+}
 
 struct CustomAssociationValidationError: Error, LocalizedError, Equatable, Sendable {
     enum Field: String, Hashable, Sendable {
@@ -17,6 +23,7 @@ struct CustomAssociation: Codable, Hashable, Identifiable, Sendable {
     let filenameExtensions: [String]
     let mimeType: String?
     let conformsTo: String?
+    let creation: ContentTypeCreation
 
     var id: Association { association }
 
@@ -29,16 +36,18 @@ struct CustomAssociation: Codable, Hashable, Identifiable, Sendable {
             localizedDescription: name,
             tags: tags,
             supertypes: conformsTo.map { [$0] } ?? [],
-            isFileType: true
+            isFileType: true,
+            isDynamic: creation == .dynamic
         )
     }
 
-    fileprivate init(association: Association, name: String?, filenameExtensions: [String], mimeType: String?, conformsTo: String?) {
+    fileprivate init(association: Association, name: String?, filenameExtensions: [String], mimeType: String?, conformsTo: String?, creation: ContentTypeCreation = .declared) {
         self.association = association
         self.name = name
         self.filenameExtensions = filenameExtensions
         self.mimeType = mimeType
         self.conformsTo = conformsTo
+        self.creation = creation
     }
 
     init(from decoder: Decoder) throws {
@@ -48,12 +57,27 @@ struct CustomAssociation: Codable, Hashable, Identifiable, Sendable {
         let extensions = try container.decode([String].self, forKey: .filenameExtensions)
         let mimeType = try container.decodeIfPresent(String.self, forKey: .mimeType)
         let conformsTo = try container.decodeIfPresent(String.self, forKey: .conformsTo)
+        let creation = try container.decodeIfPresent(ContentTypeCreation.self, forKey: .creation) ?? .declared
         // Reject invalid persisted fields instead of silently discarding them.
-        guard association.kind == .contentType || (extensions.isEmpty && mimeType == nil && conformsTo == nil && name == nil) else {
+        guard association.kind == .contentType || (creation == .declared && extensions.isEmpty && mimeType == nil && conformsTo == nil && name == nil) else {
             throw DecodingError.dataCorruptedError(forKey: .association, in: container, debugDescription: "URL schemes cannot contain file type metadata.")
         }
         guard extensions.allSatisfy({ !$0.contains(",") }) else {
             throw DecodingError.dataCorruptedError(forKey: .filenameExtensions, in: container, debugDescription: "Each extension must be a single tag.")
+        }
+        if creation == .dynamic {
+            var draft = NewAssociationDraft(kind: .contentType)
+            draft.filenameExtensions = extensions.joined(separator: ",")
+            let normalized = try draft.validatedExtensions()
+            guard association.identifier.hasPrefix("dyn."), normalized == extensions,
+                  normalized.count == 1, name == nil, mimeType == nil, conformsTo == nil else {
+                throw DecodingError.dataCorruptedError(forKey: .association, in: container,
+                    debugDescription: "The saved dynamic type has invalid metadata.")
+            }
+            self = CustomAssociation(association: association, name: nil,
+                                     filenameExtensions: normalized, mimeType: nil,
+                                     conformsTo: nil, creation: .dynamic)
+            return
         }
         var draft = NewAssociationDraft(kind: association.kind)
         draft.identifier = association.identifier
@@ -61,7 +85,12 @@ struct CustomAssociation: Codable, Hashable, Identifiable, Sendable {
         draft.filenameExtensions = extensions.joined(separator: ",")
         draft.mimeType = mimeType ?? ""
         draft.conformsTo = conformsTo ?? ""
+        draft.contentTypeCreation = creation
         self = try draft.validatedRecord()
+        guard self.association == association else {
+            throw DecodingError.dataCorruptedError(forKey: .association, in: container,
+                debugDescription: "The saved dynamic identifier does not match its extension.")
+        }
     }
 }
 
@@ -72,6 +101,7 @@ struct NewAssociationDraft: Sendable {
     var filenameExtensions = ""
     var mimeType = ""
     var conformsTo = "public.data"
+    var contentTypeCreation: ContentTypeCreation = .declared
 
     init(kind: Association.Kind) {
         self.kind = kind
@@ -85,11 +115,30 @@ struct NewAssociationDraft: Sendable {
             if value.hasSuffix("://") { value.removeLast(3) }
             return try? .urlScheme(value)
         case .contentType:
+            if contentTypeCreation == .dynamic {
+                let tag = filenameExtensions.trimmingCharacters(in: .whitespacesAndNewlines)
+                    .trimmingCharacters(in: CharacterSet(charactersIn: "."))
+                guard let type = UTType(filenameExtension: tag), type.isDynamic else { return nil }
+                return try? .contentType(type.identifier)
+            }
             return try? .contentType(identifier)
         }
     }
 
     func validatedRecord() throws -> CustomAssociation {
+        if kind == .contentType && contentTypeCreation == .dynamic {
+            let extensions = try validatedExtensions()
+            guard extensions.count == 1 else {
+                throw invalid(.filenameExtensions, "Enter exactly one filename extension for a dynamic type.")
+            }
+            guard let type = UTType(filenameExtension: extensions[0]), type.isDynamic,
+                  let association = try? Association.contentType(type.identifier) else {
+                throw invalid(.filenameExtensions, "This extension already has a declared type or cannot form a dynamic type.")
+            }
+            return CustomAssociation(association: association, name: nil,
+                                     filenameExtensions: extensions, mimeType: nil,
+                                     conformsTo: nil, creation: .dynamic)
+        }
         guard let association = parsedAssociation else {
             throw invalid(.identifier, kind == .urlScheme
                 ? "Enter a URL scheme such as myapp, without a full URL."
@@ -116,17 +165,7 @@ struct NewAssociationDraft: Sendable {
         guard !name.isEmpty, name.rangeOfCharacter(from: .controlCharacters) == nil else {
             throw invalid(.name, "Enter a display name for this file type.")
         }
-        var extensions: [String] = []
-        for rawTag in filenameExtensions.split(separator: ",", omittingEmptySubsequences: false) {
-            var tag = rawTag.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-            if tag.hasPrefix(".") { tag.removeFirst() }
-            guard !tag.isEmpty, !tag.hasPrefix("."), !tag.hasSuffix("."),
-                  tag.unicodeScalars.allSatisfy({ CharacterSet.alphanumerics.contains($0) || $0 == "-" || $0 == "_" || $0 == "." }),
-                  !tag.contains("..") else {
-                throw invalid(.filenameExtensions, "Enter comma-separated extensions such as report, rpt. Do not include paths, wildcards or empty entries.")
-            }
-            if !extensions.contains(tag) { extensions.append(tag) }
-        }
+        let extensions = try validatedExtensions()
         let mimeType = mimeType.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         if !mimeType.isEmpty {
             let parts = mimeType.split(separator: "/", omittingEmptySubsequences: false)
@@ -144,6 +183,21 @@ struct NewAssociationDraft: Sendable {
         }
         return CustomAssociation(association: association, name: name, filenameExtensions: extensions,
             mimeType: mimeType.isEmpty ? nil : mimeType, conformsTo: base)
+    }
+
+    fileprivate func validatedExtensions() throws -> [String] {
+        var extensions: [String] = []
+        for rawTag in filenameExtensions.split(separator: ",", omittingEmptySubsequences: false) {
+            var tag = rawTag.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            if tag.hasPrefix(".") { tag.removeFirst() }
+            guard !tag.isEmpty, !tag.hasPrefix("."), !tag.hasSuffix("."),
+                  tag.unicodeScalars.allSatisfy({ CharacterSet.alphanumerics.contains($0) || $0 == "-" || $0 == "_" || $0 == "." }),
+                  !tag.contains("..") else {
+                throw invalid(.filenameExtensions, "Enter comma-separated extensions such as report, rpt. Do not include paths, wildcards or empty entries.")
+            }
+            if !extensions.contains(tag) { extensions.append(tag) }
+        }
+        return extensions
     }
 
     private func invalid(_ field: CustomAssociationValidationError.Field, _ message: String) -> CustomAssociationValidationError {

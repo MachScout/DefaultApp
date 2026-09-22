@@ -78,6 +78,11 @@ struct AssociationListView: View {
                     .padding(.horizontal, 5).padding(.vertical, 1)
                     .background(Color.secondary.opacity(0.1), in: RoundedRectangle(cornerRadius: 4))
             }
+            if row.isDynamic {
+                Text("Dynamic").font(.caption2).foregroundStyle(.secondary)
+                    .padding(.horizontal, 5).padding(.vertical, 1)
+                    .background(Color.secondary.opacity(0.1), in: RoundedRectangle(cornerRadius: 4))
+            }
         }
         .accessibilityElement(children: .combine)
     }

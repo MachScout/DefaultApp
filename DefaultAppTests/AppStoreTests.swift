@@ -1618,6 +1618,37 @@ final class AppStoreTests: XCTestCase, @unchecked Sendable {
     }
 
     @MainActor
+    func testDynamicTypeRequiresHandlerAndUsesLegacyPreferenceWithoutDeclaration() async throws {
+        let persistence = MemoryCustomAssociations()
+        let registrar = TestTypeRegistrar(fails: true)
+        let service = FakeService(snapshot: sampleSnapshot)
+        let store = AppStore(service: service, customAssociationStore: persistence,
+                             customTypeRegistrar: registrar)
+        await store.load()
+        var draft = NewAssociationDraft(kind: .contentType)
+        draft.contentTypeCreation = .dynamic
+        draft.filenameExtensions = "defaultappstoretestxyz123"
+        let association = try draft.validatedRecord().association
+
+        guard case .failed = await store.createAssociation(draft, application: nil) else {
+            return XCTFail("Expected a required handler")
+        }
+        let before = try await persistence.load()
+        XCTAssertTrue(before.isEmpty)
+
+        let result = await store.createAssociation(draft, application: firefox.reference)
+        XCTAssertEqual(result, .created(association))
+        let saved = try await persistence.load()
+        XCTAssertEqual(saved.first?.creation, .dynamic)
+        XCTAssertEqual(store.selectedContentType?.isDynamic, true)
+        let calls = await service.recordedCalls()
+        XCTAssertTrue(calls.contains(.setDefault(firefox.reference, association: association,
+                                                 backend: .legacy, role: .all)))
+        let wasRegistered = await registrar.isRegistered(try draft.validatedRecord())
+        XCTAssertFalse(wasRegistered)
+    }
+
+    @MainActor
     func testCustomTypeMetadataAndSelectionSurviveRefreshAndRelaunch() async throws {
         let persistence = MemoryCustomAssociations()
         let registrar = TestTypeRegistrar()

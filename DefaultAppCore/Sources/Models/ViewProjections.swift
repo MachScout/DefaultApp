@@ -32,6 +32,7 @@ public struct AssociationRow: Identifiable, Hashable, Sendable {
     public let description: String?
     public let defaultHandler: DefaultHandlerState
     public var filenameExtensions: [String] = []
+    public var isDynamic = false
     public var id: Association { association }
     public var identifier: String { association.identifier }
     public var filenameExtensionsSortValue: String { filenameExtensions.joined(separator: ", ") }
@@ -41,11 +42,14 @@ public struct AssociationRow: Identifiable, Hashable, Sendable {
 public struct ContentTypeFilters: Hashable, Sendable {
     public var hideWithoutExtensions: Bool
     public var hideWithoutDefaultApplication: Bool
+    public var onlyDynamic: Bool
 
     public init(hideWithoutExtensions: Bool = false,
-                hideWithoutDefaultApplication: Bool = false) {
+                hideWithoutDefaultApplication: Bool = false,
+                onlyDynamic: Bool = false) {
         self.hideWithoutExtensions = hideWithoutExtensions
         self.hideWithoutDefaultApplication = hideWithoutDefaultApplication
+        self.onlyDynamic = onlyDynamic
     }
 }
 
@@ -88,7 +92,8 @@ public struct AssociationListIndex: Sendable {
                 guard let association = try? Association.contentType(record.identifier) else { return nil }
                 let extensions = Set(record.tags["public.filename-extension"] ?? []).sorted()
                 return Entry(row: AssociationRow(association: association, description: record.localizedDescription,
-                                                 defaultHandler: .notLoaded, filenameExtensions: extensions),
+                                                 defaultHandler: .notLoaded, filenameExtensions: extensions,
+                                                 isDynamic: record.isDynamic == true),
                              searchTerms: [record.identifier, record.localizedDescription ?? ""]
                                 + extensions.map { "." + $0 } + record.tags.values.flatMap { $0 } + record.supertypes)
             }
@@ -102,6 +107,7 @@ public struct AssociationListIndex: Sendable {
         let rows = entries.compactMap { entry -> AssociationRow? in
             let state = defaults[entry.row.association] ?? .notLoaded
             if filters.hideWithoutExtensions && entry.row.filenameExtensions.isEmpty { return nil }
+            if filters.onlyDynamic && !entry.row.isDynamic { return nil }
             if filters.hideWithoutDefaultApplication && state.application == nil { return nil }
             if !query.isEmpty {
                 let matchesMetadata = entry.searchTerms.contains { $0.localizedStandardContains(query) }
@@ -111,7 +117,8 @@ public struct AssociationListIndex: Sendable {
                 guard matchesMetadata || matchesDefault else { return nil }
             }
             return AssociationRow(association: entry.row.association, description: entry.row.description,
-                                  defaultHandler: state, filenameExtensions: entry.row.filenameExtensions)
+                                  defaultHandler: state, filenameExtensions: entry.row.filenameExtensions,
+                                  isDynamic: entry.row.isDynamic)
         }
         return rows.sorted { left, right in
             let comparison: ComparisonResult

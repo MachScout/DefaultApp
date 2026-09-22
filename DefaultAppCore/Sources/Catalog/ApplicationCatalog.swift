@@ -19,6 +19,7 @@ public extension ApplicationCatalogProviding {
 
 public actor ApplicationCatalog: ApplicationCatalogProviding {
     private let spi: any PrivateLaunchServicesProviding
+    private let dynamicTypeDiscovery: any DynamicTypeDiscovering
     private let parser: BundleDeclarationParser
     private let infoDictionary: @Sendable (URL) throws -> [String: Any]
     private var cachedSnapshot: CatalogSnapshot?
@@ -29,10 +30,11 @@ public actor ApplicationCatalog: ApplicationCatalogProviding {
         let inode: UInt64
     }
     private var bundleCache: [String: (Fingerprint, ApplicationRecord)] = [:]
-    private var discovery: (applications: [URL], schemes: [(scheme: String, handlerURL: URL)], types: [String])?
+    private var discovery: (applications: [URL], schemes: [(scheme: String, handlerURL: URL)], types: [String], dynamicTypes: [DynamicTypePreference], warning: String?)?
 
     public init(
         spi: any PrivateLaunchServicesProviding = SilgenLaunchServicesSPI(),
+        dynamicTypeDiscovery: any DynamicTypeDiscovering = DynamicTypeDiscovery(),
         parser: BundleDeclarationParser = BundleDeclarationParser(),
         infoDictionary: @escaping @Sendable (URL) throws -> [String: Any] = { url in
             let plistURL = url.appendingPathComponent("Contents/Info.plist")
@@ -46,6 +48,7 @@ public actor ApplicationCatalog: ApplicationCatalogProviding {
         }
     ) {
         self.spi = spi
+        self.dynamicTypeDiscovery = dynamicTypeDiscovery
         self.parser = parser
         self.infoDictionary = infoDictionary
     }
@@ -64,6 +67,15 @@ public actor ApplicationCatalog: ApplicationCatalogProviding {
         let rawApplications = try spi.applicationURLs()
         let rawSchemes = try spi.schemesAndHandlerURLs()
         let rawTypes = try spi.declaredTypeIdentifiers()
+        let dynamicTypes: [DynamicTypePreference]
+        let dynamicWarning: String?
+        do {
+            dynamicTypes = try dynamicTypeDiscovery.discover()
+            dynamicWarning = nil
+        } catch {
+            dynamicTypes = []
+            dynamicWarning = "Dynamic type preferences could not be read: \(error.localizedDescription)"
+        }
         var urlsByIdentity: [String: URL] = [:]
         for url in rawApplications + rawSchemes.map(\.handlerURL) {
             let identity = canonicalApplicationURLIdentity(url)
@@ -72,8 +84,9 @@ public actor ApplicationCatalog: ApplicationCatalogProviding {
         let applications = urlsByIdentity.values.map { readApplication(at: $0) }.sorted(by: Self.applicationOrder)
         try Task.checkCancellation()
         let snapshot = try buildSnapshot(applications: applications, rawApplications: rawApplications,
-                                         rawSchemes: rawSchemes, rawTypes: rawTypes)
-        discovery = (rawApplications, rawSchemes, rawTypes)
+                                         rawSchemes: rawSchemes, rawTypes: rawTypes,
+                                         dynamicTypes: dynamicTypes, dynamicWarning: dynamicWarning)
+        discovery = (rawApplications, rawSchemes, rawTypes, dynamicTypes, dynamicWarning)
         bundleCache = bundleCache.filter { urlsByIdentity[$0.key] != nil }
         return snapshot
     }
@@ -90,7 +103,9 @@ public actor ApplicationCatalog: ApplicationCatalogProviding {
                                + updated.exportedTypeDeclarations + updated.importedTypeDeclarations).map(\.identifier)
                               + (old.documentTypeClaims + updated.documentTypeClaims).flatMap(\.contentTypeIdentifiers))
         return try buildSnapshot(applications: applications, rawApplications: discovery.applications,
-                             rawSchemes: discovery.schemes, rawTypes: discovery.types, refreshedTypes: changedTypes)
+                             rawSchemes: discovery.schemes, rawTypes: discovery.types,
+                             dynamicTypes: discovery.dynamicTypes, dynamicWarning: discovery.warning,
+                             refreshedTypes: changedTypes)
     }
 
     public func refreshContentType(_ identifier: String) async throws -> CatalogSnapshot {
@@ -101,7 +116,8 @@ public actor ApplicationCatalog: ApplicationCatalogProviding {
         }
         return try buildSnapshot(applications: cachedSnapshot?.applications ?? snapshot.applications,
                              rawApplications: discovery.applications, rawSchemes: discovery.schemes,
-                             rawTypes: discovery.types, refreshedTypes: [identifier])
+                             rawTypes: discovery.types, dynamicTypes: discovery.dynamicTypes,
+                             dynamicWarning: discovery.warning, refreshedTypes: [identifier])
     }
 
     private func readApplication(at url: URL) -> ApplicationRecord {
@@ -138,8 +154,10 @@ public actor ApplicationCatalog: ApplicationCatalogProviding {
 
     private func buildSnapshot(applications: [ApplicationRecord], rawApplications: [URL],
                                rawSchemes: [(scheme: String, handlerURL: URL)], rawTypes: [String],
+                               dynamicTypes: [DynamicTypePreference], dynamicWarning: String?,
                                refreshedTypes: Set<String>? = nil) throws -> CatalogSnapshot {
         var warnings: [String] = []
+        if let dynamicWarning { warnings.append(dynamicWarning) }
         for application in applications {
             warnings.append(contentsOf: application.warnings.map { "\(application.url.path): \($0)" })
         }
@@ -170,6 +188,8 @@ public actor ApplicationCatalog: ApplicationCatalogProviding {
         }
 
         var identifiers = Set(try rawTypes.map { try Association.contentType($0).identifier })
+        identifiers.formUnion(dynamicTypes.map(\.identifier))
+        let dynamicExtensions = Dictionary(grouping: dynamicTypes, by: \.identifier)
         var declarations: [String: (ContentTypeDeclaration, ApplicationReference)] = [:]
         for application in applications {
             for claim in application.documentTypeClaims {
@@ -190,6 +210,10 @@ public actor ApplicationCatalog: ApplicationCatalogProviding {
             let systemType = UTType(identifier)
             let declaration = declarations[identifier]
             var tags = declaration?.0.tags ?? [:]
+            let extensions = dynamicExtensions[identifier]?.compactMap(\.filenameExtension) ?? []
+            if !extensions.isEmpty {
+                tags["public.filename-extension"] = Set((tags["public.filename-extension"] ?? []) + extensions).sorted(by: Self.ordered)
+            }
             for (tagClass, values) in systemType?.tags ?? [:] {
                 tags[tagClass.rawValue] = Set((tags[tagClass.rawValue] ?? []) + values).sorted(by: Self.ordered)
             }
@@ -199,7 +223,8 @@ public actor ApplicationCatalog: ApplicationCatalogProviding {
                 tags: tags,
                 supertypes: Set((systemType?.supertypes.map(\.identifier) ?? []) + (declaration?.0.conformanceIdentifiers ?? [])).sorted(by: Self.ordered),
                 declaringApplication: declaration?.1,
-                isFileType: systemType?.conforms(to: .item) ?? false
+                isFileType: systemType?.conforms(to: .item) ?? false,
+                isDynamic: systemType?.isDynamic ?? false
             )
         }
         let snapshot = CatalogSnapshot(

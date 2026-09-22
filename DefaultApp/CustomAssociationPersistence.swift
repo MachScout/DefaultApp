@@ -81,11 +81,11 @@ actor CustomTypeRegistrar: CustomTypeRegistering {
     }
 
     func isRegistered(_ record: CustomAssociation) async -> Bool {
-        record.association.kind == .contentType && verification(record.association.identifier)
+        record.association.kind == .contentType && record.creation == .declared && verification(record.association.identifier)
     }
 
     func register(_ record: CustomAssociation) async throws {
-        guard record.association.kind == .contentType else { return }
+        guard record.association.kind == .contentType, record.creation == .declared else { return }
         let identifier = record.association.identifier
         let digest = SHA256.hash(data: Data(identifier.utf8)).map { String(format: "%02x", $0) }.joined()
         let bundleIdentifier = "app.defaultapp.type-declaration.\(digest)"
